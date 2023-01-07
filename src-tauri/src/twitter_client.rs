@@ -22,7 +22,7 @@ use twitter_v2::TwitterApi;
 use twitter_v2::authorization::{Oauth2Client, Oauth2Token};
 use twitter_v2::error::{Error, Result};
 use twitter_v2::query::{TweetField, UserField};
-use twitter_v2::data::{User};
+use twitter_v2::data::{User, Tweet};
 
 use reqwest::{Url};
 
@@ -221,11 +221,21 @@ async fn tweets2(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoR
 
     let api = TwitterApi::new(oauth_token.clone());
 
-    let url = base_url().join("users/me").unwrap();
     let client = reqwest::Client::new();
     let auth_val = format!("Bearer {}", oauth_token.access_token().secret());
+
+    let url = base_url().join("users/me").unwrap();
     let user_id: TwitterResponse<User> = client.get(url)
-                    .header(reqwest::header::AUTHORIZATION, auth_val)
+                    .header(reqwest::header::AUTHORIZATION, auth_val.clone())
+                    .send()
+                    .await.unwrap()
+                    .json()
+                    .await.unwrap();
+
+    let user_id = user_id.data.id;
+    let url = base_url().join(format!("users/{user_id}/timelines/reverse_chronological").as_str()).unwrap();
+    let timeline: TwitterResponse<Vec<Tweet>> = client.get(url)
+                    .header(reqwest::header::AUTHORIZATION, auth_val.clone())
                     .send()
                     .await.unwrap()
                     .json()
@@ -233,9 +243,13 @@ async fn tweets2(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoR
 
     // get tweet by id
     //let url = base_url().join("users/{user_id}/timelines/reverse_chronological").unwrap();
-    println!("{:?}", user_id);
+    let mut texts = Vec::<String>::new();
+    for tweet in timeline.data {
+        texts.push(tweet.text);
+    }
+    let json = serde_json::to_string(&texts).unwrap();
 
-    Ok::<_, (StatusCode, String)>(Json(user_id.data.id))
+    Ok::<_, (StatusCode, String)>(json)
 }
 
 async fn revoke(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoResponse {

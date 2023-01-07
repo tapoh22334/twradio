@@ -2,23 +2,31 @@ import React from 'react';
 import logo from './logo.svg';
 import './App.css';
 
+import TweetLi from './components/TweetCard'
+
+import List from '@mui/material/List';
+import Divider from '@mui/material/Divider';
+
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+        <List
+          sx={{
+            width: '100%',
+            maxWidth: 360,
+            bgcolor: 'background.paper',
+          }}
         >
-          Learn React
-        </a>
-      </header>
+
+          <Divider component="li" />
+          <TweetLi />
+          <Divider component="li" />
+          <TweetLi />
+          <Divider component="li" />
+          <TweetLi />
+          <Divider component="li" />
+
+        </List>
     </div>
   );
 }

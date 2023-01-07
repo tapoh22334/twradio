@@ -1,0 +1,20 @@
+
+## links
+
+
+### Rust libs
+
+https://docs.rs/twitter-v2/latest/twitter_v2/
+https://docs.rs/oauth2/latest/oauth2/
+
+
+### Twitter API
+
+https://developer.twitter.com/en/docs/twitter-api/tools-and-libraries/v2
+https://developer.twitter.com/en/docs/twitter-api/tweets/timelines/api-reference/get-users-id-reverse-chronological
+
+
+### Short cut
+http://127.0.0.1:41157/login
+http://127.0.0.1:41157/tweets2
+
