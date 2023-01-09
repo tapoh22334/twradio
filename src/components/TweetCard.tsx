@@ -1,16 +1,20 @@
 import './TweetCard.css';
 
 import * as React from 'react';
-import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemText from '@mui/material/ListItemText';
 import Avatar from '@mui/material/Avatar';
-import BeachAccessIcon from '@mui/icons-material/BeachAccess';
-import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
-export default function TweetLi() {
+export type TweetLiProps = {
+    username: String,
+    user_id: String,
+    time: String,
+    tweet: String
+}
+
+export const TweetLi: React.FC<TweetLiProps> = (props) => {
   return (
       <ListItem alignItems="flex-start">
         <ListItemAvatar>
@@ -19,14 +23,18 @@ export default function TweetLi() {
         <ListItemText
           primary={
             <React.Fragment>
-                {'Oui Oui'}
+
+                {props.username}
+
                 <Typography
                   sx={{ display: 'inline' }}
                   component="span"
                   variant="caption"
                   color="text.primary"
                 >
-                   {" @oui_oui"}
+
+                   {" @" + props.user_id}
+
                 </Typography>
                 <Typography
                   sx={{ display: 'inline' }}
@@ -34,13 +42,13 @@ export default function TweetLi() {
                   variant="caption"
                   color="text.primary"
                 >
-                   {" — July 20, 2014"}
+                   {" — " + props.time}
                 </Typography>
             </React.Fragment>
           }
-          secondary={
-              'Do you have Paris recommendations? Have you ever…'
-          }
+
+          secondary={ props.tweet }
+
         />
       </ListItem>
 

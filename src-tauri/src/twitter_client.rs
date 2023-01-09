@@ -11,22 +11,20 @@ use std::sync::{Arc, Mutex};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::prelude::*;
 
-use oauth2::basic::{BasicClient, BasicRequestTokenError, BasicTokenResponse};
+use oauth2::basic::BasicClient;
 use oauth2::{
-    AccessToken, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, RefreshToken, RevocationUrl, Scope, StandardRevocableToken,
-    TokenResponse, TokenUrl,
+    AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
+    PkceCodeVerifier, RedirectUrl, RevocationUrl, Scope, TokenUrl,
 };
 
 use twitter_v2::TwitterApi;
-use twitter_v2::authorization::{Oauth2Client, Oauth2Token};
-use twitter_v2::error::{Error, Result};
-use twitter_v2::query::{TweetField, UserField};
+use twitter_v2::authorization::Oauth2Token;
+use twitter_v2::error::Result;
 use twitter_v2::data::{User, Tweet};
 
-use reqwest::{Url};
+use reqwest::Url;
 
-pub struct Oauth2Ctx {
+struct Oauth2Ctx {
     oauth2client: BasicClient,
     verifier: Option<PkceCodeVerifier>,
     state: Option<CsrfToken>,
@@ -39,6 +37,10 @@ fn callback_server() -> SocketAddr {
 
 fn base_url() -> Url {
     Url::parse("https://api.twitter.com/2/").unwrap()
+}
+
+pub fn entrypoint_url() -> String {
+    format!("http://{}/login", callback_server())
 }
 
 impl Oauth2Ctx {
@@ -68,7 +70,6 @@ async fn login(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoRes
     // create challenge
     let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
     // create authorization url
-    //
     let (url, state) = ctx.oauth2client.authorize_url(CsrfToken::new_random)
             .set_pkce_challenge(challenge)
                 // Set the desired scopes.
@@ -76,10 +77,6 @@ async fn login(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoRes
             .add_scope(Scope::new("users.read".to_string()))
             .add_scope(Scope::new("offline.access".to_string()))
             .url();
-
-    println!("{:?}", url.as_str());
-    println!("{:?}", state.secret());
-    println!("{:?}", verifier.secret());
 
     // set context for reference in callback
     ctx.verifier = Some(verifier);
@@ -219,8 +216,6 @@ async fn tweets2(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoR
         ctx.lock().unwrap().token = Some(oauth_token.clone());
     }
 
-    let api = TwitterApi::new(oauth_token.clone());
-
     let client = reqwest::Client::new();
     let auth_val = format!("Bearer {}", oauth_token.access_token().secret());
 
@@ -313,6 +308,7 @@ pub async fn start_server() {
     let addr = callback_server();
     println!("\nOpen http://{}/login in your browser\n", addr);
     tracing::debug!("Serving at {}", addr);
+
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
