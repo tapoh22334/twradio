@@ -8,6 +8,7 @@ import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 
 export type TweetLiProps = {
+    tweet_id: String,
     username: String,
     user_id: String,
     time: String,
