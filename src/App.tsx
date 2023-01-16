@@ -10,6 +10,7 @@ import Divider from '@mui/material/Divider';
 
 type ViewElements = {
     tweet_id: string,
+    created_at: string,
     text: string,
     name: string,
     username: string,
@@ -19,6 +20,10 @@ function App() {
 
   const [tweetList, setTweetList] = React.useState<Array<TweetLiProps>>(()=>{
     return [ ]
+  });
+
+  const [scroll, setScroll] = React.useState<string>(()=>{
+    return ""
   });
 
   React.useEffect(() => {
@@ -47,15 +52,28 @@ function App() {
             {tweet_id: data.tweet_id,
             username: data.name,
             user_id: data.username,
-            time: "4s",
+            time: data.created_at,
             tweet: data.text}
         )
         setTweetList([...tweetList]);
     });
 
+    listen<string>('tauri://frontend/scroll', (event) => {
+        const twid: string = event.payload;
+        const targetEl = document.getElementById(twid)
+        targetEl?.scrollIntoView({ behavior: 'smooth' })
+
+        console.log(twid);
+    });
+
     console.log("invoke setup_app function");
     invoke('setup_app').then(() => console.log('setup_app complete'));
   }, []) ;
+
+  const format_time = (utc: string) => {
+    const twtime = new Date(utc);
+    return twtime.toString();
+  }
 
   return (
     <div className="App">
@@ -75,7 +93,7 @@ function App() {
                                 tweet_id={row.tweet_id}
                                 username={row.username}
                                 user_id={row.user_id}
-                                time={row.time}
+                                time={format_time(row.time)}
                                 tweet={row.tweet} />
                             <Divider component="li" />
                          </React.Fragment>

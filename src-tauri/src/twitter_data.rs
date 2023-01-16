@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tweet {
     pub author_id: String,
+    pub created_at: String,
     pub edit_history_tweet_ids: Vec<String>,
     pub id: String,
     pub text: String,

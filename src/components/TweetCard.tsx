@@ -8,16 +8,16 @@ import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 
 export type TweetLiProps = {
-    tweet_id: String,
-    username: String,
-    user_id: String,
-    time: String,
-    tweet: String
+    tweet_id: string,
+    username: string,
+    user_id: string,
+    time: string,
+    tweet: string
 }
 
 export const TweetLi: React.FC<TweetLiProps> = (props) => {
   return (
-      <ListItem alignItems="flex-start">
+      <ListItem id={props.tweet_id} alignItems="flex-start">
         <ListItemAvatar>
           <Avatar alt="Cindy Baker" src="/static/images/avatar/3.jpg" />
         </ListItemAvatar>

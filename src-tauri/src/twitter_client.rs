@@ -36,9 +36,9 @@ pub async fn request_tweet(token: &Oauth2Token) -> Result<twitter_data::TweetsRe
     println!("user_id : {:?}", user_id);
 
     let url = base_url().join(format!("users/{user_id}/timelines/reverse_chronological").as_str()).unwrap();
-    let timeline: twitter_data::TweetsResponse = client.get(url)
+    let timeline= client.get(url)
                     .header(reqwest::header::AUTHORIZATION, auth_val.clone())
-                    .query(&[("expansions", "author_id")])
+                    .query(&[("expansions", "author_id"), ("tweet.fields", "created_at")])
                     .send()
                     .await?
                     .json()

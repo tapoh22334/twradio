@@ -8,6 +8,7 @@ mod scheduler;
 mod display_bridge;
 mod voicegen_agent;
 mod voicegen_client;
+mod voicegen_filter;
 mod twitter_agent;
 mod twitter_data;
 mod twitter_client;
@@ -22,7 +23,7 @@ fn setup_app(app_handle: tauri::AppHandle) {
 
     println!("scheduler::start");
     let (display_rx, playbook_rx, audioctl_rx, audioctl_rdy_tx, speech_tx)
-        = scheduler::start(tweet_rx);
+        = scheduler::start(app_handle.clone(), tweet_rx);
 
     println!("display_bridge::start");
     display_bridge::start(app_handle.clone(), display_rx);

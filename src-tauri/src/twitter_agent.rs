@@ -9,6 +9,8 @@ use crate::twitter_authorizator;
 
 use tauri::Manager;
 
+const QUEUE_LENGTH : usize = 256;
+
 async fn perform_oauth2_flow() -> Oauth2Token {
     let (shutdown_tx, token_rx) = twitter_authorizator::start_server();
     webbrowser::open(twitter_authorizator::entrypoint_url().as_str()).unwrap();
@@ -57,7 +59,7 @@ fn save_token_into_storage(app_handle: &tauri::AppHandle, token: Oauth2Token) {
 
 pub fn start(app_handle: tauri::AppHandle) -> tokio::sync::mpsc::Receiver<scheduler::Record>
 {
-    let (tweet_tx, tweet_rx) = tokio::sync::mpsc::channel(100);
+    let (tweet_tx, tweet_rx) = tokio::sync::mpsc::channel(QUEUE_LENGTH);
 
     tokio::spawn(async move {
         let mut token: Oauth2Token = {
@@ -90,7 +92,6 @@ pub fn start(app_handle: tauri::AppHandle) -> tokio::sync::mpsc::Receiver<schedu
         };
 
         for tweet in tweets.data {
-            println!("tw send");
             let record: scheduler::Record = scheduler::into(&tweet, &tweets.includes.users);
             tweet_tx.send(record).await.unwrap();
         }
