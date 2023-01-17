@@ -43,24 +43,29 @@ pub fn start(app_handle: tauri::AppHandle,
             match playbook_rx.recv().await {
                 Some(msg) => {
 
+                    // Modify username for speech
                     let hira_name = to_hiragana(msg.name.as_str());
-
-                    let hira_text = voicegen_filter::replace_retweet(msg.text.as_str());
-                    let hira_text = voicegen_filter::replace_url(hira_text.as_str());
-                    let hira_text = to_hiragana(hira_text.as_str());
-
-                    println!("{:?}", msg.text);
-                    println!("{:?}", hira_text);
-
                     let speech_name = match name_cache.get(&hira_name) {
                         Some(hit) => hit,
                         None => {
                             let v = voicegen_client::request_voice(&hira_name).await.unwrap();
+
+                            // To shorten TTS processing time, cache the user name speech
+                            // TBD: Warning: cache out method is not implemented.
+                            // It would consume more memory if the non follower is comes here.
                             name_cache.insert(hira_name.clone(), v);
                             name_cache.get(&hira_name).unwrap()
                         },
                     };
+
+                    // Modify tweet message for speech
+                    let hira_text = voicegen_filter::replace_retweet(msg.text.as_str());
+                    let hira_text = voicegen_filter::replace_url(hira_text.as_str());
+                    let hira_text = to_hiragana(hira_text.as_str());
                     let speech_text = voicegen_client::request_voice(&hira_text).await.unwrap();
+
+                    println!("{:?}", msg.text);
+                    println!("{:?}", hira_text);
 
                     let speech = Speech {tweet_id: msg.tweet_id, text: speech_text, name: speech_name.clone()};
 

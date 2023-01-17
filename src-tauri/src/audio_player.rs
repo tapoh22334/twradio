@@ -37,7 +37,7 @@ pub fn start(app_handle: tauri::AppHandle,
                     match msg {
                         AudioControl::Tick => {
                             if sink.empty() && playing {
-                                println!("empty");
+                                println!("audio_coordinator: sink empty");
                                 let _ = audioctl_rdy_tx.try_send(AudioControlRdy{});
                                 playing = false;
                             }

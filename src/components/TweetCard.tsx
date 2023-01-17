@@ -43,7 +43,7 @@ export const TweetLi: React.FC<TweetLiProps> = (props) => {
                   variant="caption"
                   color="text.primary"
                 >
-                   {" — " + props.time}
+                   {"・" + props.time}
                 </Typography>
             </React.Fragment>
           }
