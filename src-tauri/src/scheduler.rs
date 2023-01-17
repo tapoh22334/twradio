@@ -116,7 +116,8 @@ pub fn start(app_handle: tauri::AppHandle, mut tweet_rx: tokio::sync::mpsc::Rece
                 ready_list.len(),
                 played_list.len(),
                 speech_cache.len());
-            print!("Select> ");
+
+            print!("scheduler: Select> ");
             tokio::select!{
                 Some(msg) = tweet_rx.recv() => {
                     println!("New tweet incoming");

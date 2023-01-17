@@ -23,16 +23,16 @@ pub struct Includes {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Meta {
-    pub newest_id: String,
-    pub next_token: String,
-    pub oldest_id: String,
+    pub newest_id: Option<String>,
+    pub next_token: Option<String>,
+    pub oldest_id: Option<String>,
     pub result_count: u32
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TweetsResponse {
-    pub data: Vec<Tweet>,
-    pub includes: Includes,
+    pub data: Option<Vec<Tweet>>,
+    pub includes: Option<Includes>,
     pub meta: Meta,
 }
 

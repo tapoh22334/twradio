@@ -33,6 +33,7 @@ fn setup_app(app_handle: tauri::AppHandle) {
 
     println!("audio_player::start");
     audio_player::start(app_handle.clone(), audioctl_rx, audioctl_rdy_tx);
+
 }
 
 

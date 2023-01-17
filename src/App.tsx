@@ -26,6 +26,38 @@ type ViewElements = {
     username: string,
 }
 
+const format_time = (utc: string) => {
+    const twtime = new Date(utc).getTime();
+    const now = new Date().getTime();
+
+    //1000(ミリ秒) × 60(秒) × 60(分) × 24(時間) = 86400000
+    const year = 86400000 * 365;
+    const week = 86400000 * 7;
+    const day =  86400000;
+    const hour =  3600000;
+    const min =     60000;
+    const sec =      1000;
+
+    const sub = now - twtime;
+    let res;
+    if (sub > year) {
+        res = Math.floor(sub / year).toString() + "y";
+    } else if (sub > week) {
+        res = Math.floor(sub / week).toString() + "w";
+    } else if (sub > day) {
+        res = Math.floor(sub / day).toString() + "d";
+    } else if (sub > hour) {
+        res = Math.floor(sub / hour).toString() + "h";
+    } else if (sub > min) {
+        res = Math.floor(sub / min).toString() + "m";
+    } else if (sub > sec) {
+        res = Math.floor(sub / sec).toString() + "s";
+    } else {
+        res = "1s";
+    }
+    return res;
+}
+
 function App() {
 
   const [tweetList, setTweetList] = React.useState<Array<TweetLiProps>>(()=>{
@@ -33,6 +65,11 @@ function App() {
   });
 
   const [paused, setPaused] = React.useState(false);
+  const onPlayStopClick = () => {
+    emit('tauri://backend/playstop', !paused);
+    setPaused(!paused);
+  }
+
 
   React.useEffect(() => {
     listen('tauri://frontend/token-register', (event)=> {
@@ -78,38 +115,6 @@ function App() {
     invoke('setup_app').then(() => console.log('setup_app complete'));
   }, []) ;
 
-  const format_time = (utc: string) => {
-    const twtime = new Date(utc).getTime();
-    const now = new Date().getTime();
-
-    const sub = now - twtime;
-    //1000(ミリ秒) × 60(秒) × 60(分) × 24(時間) = 86400000
-    const year = 86400000 * 365;
-    const week = 86400000 * 7;
-    const day =  86400000;
-    const hour =  3600000;
-    const min =     60000;
-    const sec =      1000;
-
-    let res;
-    if (sub > year) {
-        res = Math.floor(sub / year).toString() + "y";
-    } else if (sub > week) {
-        res = Math.floor(sub / week).toString() + "w";
-    } else if (sub > day) {
-        res = Math.floor(sub / day).toString() + "d";
-    } else if (sub > hour) {
-        res = Math.floor(sub / hour).toString() + "h";
-    } else if (sub > min) {
-        res = Math.floor(sub / min).toString() + "m";
-    } else if (sub > sec) {
-        res = Math.floor(sub / sec).toString() + "s";
-    } else {
-        res = "1s";
-    }
-    return res;
-  }
-
   return (
     <div className="App">
         <AppBar className="Head" position="sticky">
@@ -126,7 +131,7 @@ function App() {
 
                 <IconButton
                     color="inherit"
-                    onClick={() => setPaused(!paused)}
+                    onClick={onPlayStopClick}
                 >
                     {paused ? (
                         <PlayArrowRounded />
