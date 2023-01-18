@@ -71,12 +71,12 @@ pub fn start(app_handle: tauri::AppHandle,
 
                         AudioControl::Pause => {
                             println!("audio_coordinator: recv Pause");
-                            break;
+                            sink.pause();
                         },
 
                         AudioControl::Resume => {
                             println!("audio_coordinator: recv Resume");
-                            break;
+                            sink.play();
                         },
 
                         AudioControl::Quit => {

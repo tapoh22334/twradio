@@ -64,10 +64,23 @@ function App() {
     return [ ]
   });
 
+  const [volume, setVolume] = React.useState(() => {
+    const json = localStorage.getItem("volume");
+    const initVolume = json === null ? null : JSON.parse(json);
+
+    return initVolume === null ? 80 : initVolume;
+  });
+
+  const onVolumeChange = (event: Event, newValue: number | number[]) => {
+    setVolume(newValue as number);
+    invoke('set_volume', {volume: newValue as number});
+    localStorage.setItem("volume", JSON.stringify(newValue as number));
+  };
+
   const [paused, setPaused] = React.useState(false);
-  const onPlayStopClick = () => {
-    emit('tauri://backend/playstop', !paused);
+  const onPauseResumeClick = () => {
     setPaused(!paused);
+    invoke('set_paused', {paused: !paused});
   }
 
 
@@ -131,7 +144,7 @@ function App() {
 
                 <IconButton
                     color="inherit"
-                    onClick={onPlayStopClick}
+                    onClick={onPauseResumeClick}
                 >
                     {paused ? (
                         <PlayArrowRounded />
@@ -139,6 +152,8 @@ function App() {
                         <PauseRounded />
                     )}
                 </IconButton>
+
+                {/*
                 <IconButton
                     color="inherit">
                     <FastForwardRounded />
@@ -148,11 +163,16 @@ function App() {
                     color="inherit">
                     <AdjustIcon />
                 </IconButton>
+                */}
 
                 <VolumeUp 
                   sx={{ mr: 1 }}
                 />
-                <Slider sx={{ width: '40%', color: "inherit"}}/>
+                <Slider value={volume}
+                    onChange={onVolumeChange}
+                    min={0}
+                    max={100}
+                    sx={{ width: '40%', color: "inherit"}}/>
 
             </Toolbar>
         </AppBar>

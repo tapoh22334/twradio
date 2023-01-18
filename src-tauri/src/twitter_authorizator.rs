@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use axum::{
     extract::{Extension, Query},
     http::StatusCode,
@@ -5,7 +6,6 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tower_http::trace::TraceLayer;
@@ -19,6 +19,9 @@ use oauth2::{
 
 use twitter_v2::authorization::Oauth2Token;
 use twitter_v2::error::Result;
+
+use tauri::Manager;
+
 
 fn callback_server() -> SocketAddr {
     SocketAddr::from(([127, 0, 0, 1], 41157))
@@ -166,6 +169,7 @@ pub async fn refresh_token_if_expired(token: &mut Oauth2Token) -> Result<bool, &
                 .unwrap();
 
             *token = token_res.try_into().unwrap();
+
             Ok(true)
         } else {
             Err("No Refresh token found")
@@ -218,4 +222,104 @@ pub fn start_server() -> (tokio::sync::oneshot::Sender::<()>,
     );
 
     (shutdown_tx, token_rx)
+}
+
+
+async fn perform_oauth2_flow() -> Oauth2Token {
+    let (shutdown_tx, token_rx) = start_server();
+    webbrowser::open(entrypoint_url().as_str()).unwrap();
+
+    let t = token_rx.await.ok().unwrap();
+    shutdown_tx.send(()).ok().unwrap();
+    t
+}
+
+async fn get_token_from_storage(app_handle: &tauri::AppHandle) -> Option<Oauth2Token> {
+    println!("get token from storage");
+    app_handle
+        .emit_all("tauri://frontend/token-request", ())
+        .unwrap();
+
+    let (token_complete_tx, token_complete_rx) = tokio::sync::oneshot::channel::<Option<Oauth2Token>>();
+    let token_complete_tx : std::sync::Mutex<Option<tokio::sync::oneshot::Sender<Option<Oauth2Token>>>> = std::sync::Mutex::new(Some(token_complete_tx));
+
+    let id = app_handle.listen_global("tauri://backend/token-response", move |event| {
+        let t : Option<Oauth2Token> = {
+            if let Some(payload) = event.payload() {
+                serde_json::from_str(payload).unwrap()
+            } else {
+                None
+            }
+        };
+
+        let mut token_complete_tx = token_complete_tx.lock().unwrap();
+        token_complete_tx.take().unwrap().send(t).unwrap();
+    });
+
+    let t: Option<Oauth2Token> = token_complete_rx.await.unwrap();
+    // unlisten to the event using the `id` returned on the `listen_global` function
+    // an `once_global` API is also exposed on the `App` struct
+    app_handle.unlisten(id);
+
+    t
+
+}
+
+fn save_token_into_storage(app_handle: &tauri::AppHandle, token: Oauth2Token) {
+    app_handle
+        .emit_all("tauri://frontend/token-register", token)
+        .unwrap();
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AuthControl {
+    Authorize,
+}
+
+pub fn start(app_handle: tauri::AppHandle, mut authctl_rx: tokio::sync::mpsc::Receiver<AuthControl>)
+    -> tokio::sync::mpsc::Receiver<Oauth2Token>{
+
+        let (token_tx, token_rx) = tokio::sync::mpsc::channel::<Oauth2Token>(1);
+
+        tokio::spawn(async move {
+            loop {
+                match authctl_rx.recv().await {
+                    Some(msg) => {
+                        match msg {
+                            AuthControl::Authorize => {
+                                let mut token: Oauth2Token = {
+                                    if let Some(t) = get_token_from_storage(&app_handle).await {
+                                        println!("token is already in storage");
+
+                                        t
+                                    } else {
+                                        println!("Token not found. Request authorization");
+
+                                        let t = perform_oauth2_flow().await;
+                                        save_token_into_storage(&app_handle, t.clone());
+                                        t
+                                    }
+                                };
+
+                                if refresh_token_if_expired(&mut token)
+                                    .await
+                                        .unwrap()
+                                        {
+                                            println!("******* Token refreshed *********");
+                                            save_token_into_storage(&app_handle, token.clone());
+                                        } else {
+                                            println!("token is not expired");
+                                        }
+
+                                token_tx.send(token).await.unwrap();
+                            },
+                        }
+                    },
+
+                    None => { return (); }
+                }
+            }
+        });
+
+        token_rx
 }

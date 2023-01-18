@@ -7,7 +7,8 @@ use crate::display_bridge;
 use crate::voicegen_agent;
 use crate::audio_player;
 
-const QUEUE_LENGTH : usize = 256;
+const QUEUE_LENGTH : usize = 24;
+const HISTORY_LENGTH: usize = 100;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
@@ -68,45 +69,22 @@ fn scroll_view(app_handle: &tauri::AppHandle, tweet_id: String) {
         .unwrap();
 }
 
-pub fn start(app_handle: tauri::AppHandle, mut tweet_rx: tokio::sync::mpsc::Receiver<Record>) -> (
-        tokio::sync::mpsc::Receiver<display_bridge::ViewElements>,
-        tokio::sync::mpsc::Receiver<voicegen_agent::Playbook>,
-        tokio::sync::mpsc::Receiver<audio_player::AudioControl>,
-        tokio::sync::mpsc::Sender<audio_player::AudioControlRdy>,
-        tokio::sync::mpsc::Sender<voicegen_agent::Speech>
-        )
+pub fn start(app_handle: tauri::AppHandle,
+             mut tweet_rx: tokio::sync::mpsc::Receiver<Record>,
+             display_tx: tokio::sync::mpsc::Sender<display_bridge::ViewElements>,
+             playbook_tx: tokio::sync::mpsc::Sender<voicegen_agent::Playbook>,
+             mut speech_rx: tokio::sync::mpsc::Receiver<voicegen_agent::Speech>,
+             audioctl_tx: tokio::sync::mpsc::Sender<audio_player::AudioControl>,
+             audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>
+             )
 {
+    let (speech_rdy_tx, speech_rdy_rx) 
+        = tokio::sync::mpsc::channel::<()>(QUEUE_LENGTH);
+
     let mut wait_list = LinkedList::<Record>::new();
     let mut ready_list = LinkedList::<Record>::new();
     let mut played_list = LinkedList::<Record>::new();
     let mut speech_cache = LinkedList::<voicegen_agent::Speech>::new();
-
-    let (display_tx, display_rx)
-        = tokio::sync::mpsc::channel::<display_bridge::ViewElements>(QUEUE_LENGTH);
-
-    let (playbook_tx, playbook_rx) 
-        = tokio::sync::mpsc::channel::<voicegen_agent::Playbook>(QUEUE_LENGTH);
-
-    let (speech_tx, mut speech_rx) 
-        = tokio::sync::mpsc::channel::<voicegen_agent::Speech>(QUEUE_LENGTH);
-
-    let (speech_rdy_tx, mut speech_rdy_rx) 
-        = tokio::sync::mpsc::channel::<()>(QUEUE_LENGTH);
-
-    let (audioctl_tx, audioctl_rx) 
-        = tokio::sync::mpsc::channel::<audio_player::AudioControl>(1);
-
-    let (audioctl_rdy_tx, mut audioctl_rdy_rx) 
-        = tokio::sync::mpsc::channel::<audio_player::AudioControlRdy>(1);
-
-    let tick_tx = audioctl_tx.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-            tick_tx.send(audio_player::AudioControl::Tick).await.unwrap();
-        }
-    });
-
     let mut audio_speech_rdy_rx = wait_both(speech_rdy_rx, audioctl_rdy_rx);
 
     tokio::spawn(async move {
@@ -151,6 +129,9 @@ pub fn start(app_handle: tauri::AppHandle, mut tweet_rx: tokio::sync::mpsc::Rece
 
                     scroll_view(&app_handle, target_twid);
                     played_list.push_back(target_tw);
+                    if played_list.len() > HISTORY_LENGTH {
+                        let _ = played_list.pop_front();
+                    }
                 }
 
                 else => {
@@ -161,5 +142,4 @@ pub fn start(app_handle: tauri::AppHandle, mut tweet_rx: tokio::sync::mpsc::Rece
         }
     });
 
-    (display_rx, playbook_rx, audioctl_rx, audioctl_rdy_tx, speech_tx)
 }
