@@ -24,6 +24,7 @@ type ViewElements = {
     text: string,
     name: string,
     username: string,
+    profile_image_url: string,
 }
 
 const format_time = (utc: string) => {
@@ -111,7 +112,9 @@ function App() {
             username: data.name,
             user_id: data.username,
             time: data.created_at,
-            tweet: data.text}
+            tweet: data.text,
+            profile_image_url: data.profile_image_url
+            }
         )
         setTweetList([...tweetList]);
     });
@@ -181,7 +184,7 @@ function App() {
             <List
               sx={{
                 width: '100%',
-                maxWidth: 360,
+                //maxWidth: 360,
                 bgcolor: 'background.paper',
               }}
             >
@@ -195,7 +198,8 @@ function App() {
                                     username={row.username}
                                     user_id={row.user_id}
                                     time={format_time(row.time)}
-                                    tweet={row.tweet} />
+                                    tweet={row.tweet}
+                                    profile_image_url={row.profile_image_url} />
                                 <Divider component="li" />
                              </React.Fragment>
                             )

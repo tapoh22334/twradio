@@ -12,14 +12,15 @@ export type TweetLiProps = {
     username: string,
     user_id: string,
     time: string,
-    tweet: string
+    tweet: string,
+    profile_image_url: string
 }
 
 export const TweetLi: React.FC<TweetLiProps> = (props) => {
   return (
       <ListItem id={props.tweet_id} alignItems="flex-start">
         <ListItemAvatar>
-          <Avatar alt="Cindy Baker" src="/static/images/avatar/3.jpg" />
+          <Avatar alt="Cindy Baker" src={props.profile_image_url} />
         </ListItemAvatar>
         <ListItemText
           primary={

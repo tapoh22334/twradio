@@ -10,6 +10,7 @@ pub struct ViewElements {
     pub text: String,
     pub name: String,
     pub username: String,
+    pub profile_image_url: String,
 }
 
 impl From<scheduler::Record> for ViewElements {
@@ -19,7 +20,8 @@ impl From<scheduler::Record> for ViewElements {
             created_at: record.created_at,
             text: record.text,
             name: record.name,
-            username: record.username
+            username: record.username,
+            profile_image_url: record.profile_image_url
         }
     }
 }

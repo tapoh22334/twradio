@@ -14,6 +14,7 @@ pub struct User {
     pub id: String,
     pub name: String,
     pub username: String,
+    pub profile_image_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

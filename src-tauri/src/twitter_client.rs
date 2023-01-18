@@ -28,30 +28,11 @@ pub async fn request_user_id(token: &Oauth2Token) -> Result<String, reqwest::Err
 }
 
 
-pub async fn request_tweet(token: &Oauth2Token, user_id: &str) -> Result<twitter_data::TweetsResponse, reqwest::Error> {
-    let client = reqwest::Client::new();
-    let auth_val = format!("Bearer {}", token.access_token().secret());
-
-    let url = base_url().join(format!("users/{user_id}/timelines/reverse_chronological").as_str()).unwrap();
-    let timeline= client.get(url)
-                    .header(reqwest::header::AUTHORIZATION, auth_val.clone())
-                    .query(&[("expansions", "author_id"), ("tweet.fields", "created_at"), ("max_results", "1")])
-                    .send()
-                    .await?;
-
-    println!("{:?}", timeline.status());
-    let timeline = timeline.text().await.unwrap();
-    println!("{:?}", timeline);
-    let timeline = serde_json::from_str::<twitter_data::TweetsResponse>(timeline.as_str()).unwrap();
-
-    Ok(timeline)
-}
-
 pub async fn request_tweet_new(token: &Oauth2Token, user_id: &str, start_time: Option<&str>) -> Result<twitter_data::TweetsResponse, reqwest::Error> {
     let client = reqwest::Client::new();
     let auth_val = format!("Bearer {}", token.access_token().secret());
 
-    let mut query = [("expansions", "author_id"), ("tweet.fields", "created_at"), ("max_results", "25")].to_vec();
+    let mut query = [("expansions", "author_id"), ("user.fields", "profile_image_url"), ("tweet.fields", "created_at"), ("max_results", "25")].to_vec();
     match start_time {
         Some(s) => { query.push(("start_time", s)); },
         None => {}

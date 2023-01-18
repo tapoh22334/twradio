@@ -17,6 +17,7 @@ pub struct Record {
     pub text: String,
     pub name: String,
     pub username: String,
+    pub profile_image_url: String,
 }
 
 pub fn into(tweet: &twitter_data::Tweet, users: &Vec<twitter_data::User>) -> Record {
@@ -28,6 +29,7 @@ pub fn into(tweet: &twitter_data::Tweet, users: &Vec<twitter_data::User>) -> Rec
         text: tweet.text.clone(),
         name: user.name.clone(),
         username: user.username.clone(),
+        profile_image_url: user.profile_image_url.clone(),
     }
 }
 
