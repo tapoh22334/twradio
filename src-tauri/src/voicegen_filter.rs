@@ -13,5 +13,5 @@ pub fn replace_url(input: &str) -> String {
         static ref RE: Regex = Regex::new(r"https?://[\w!\?/\+\-_~=;\.,\*&@#\$%\(\)'\[\]]+").unwrap();
     }
 
-    RE.replace_all(input, "ユーアールエル省略").to_string()
+    RE.replace_all(input, "ユーアールエル略").to_string()
 }

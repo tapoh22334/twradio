@@ -1,7 +1,5 @@
 use serde::{Serialize, Deserialize};
-use rodio::{Sink};
-use rodio::source::{SineWave, Source};
-
+use rodio::Sink;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AudioControl {
@@ -22,7 +20,7 @@ pub fn start(app_handle: tauri::AppHandle,
              audioctl_rdy_tx: tokio::sync::mpsc::Sender<AudioControlRdy>
 ) {
     std::thread::spawn(move || {
-        let (_os, mut osh)
+        let (_os, osh)
             = rodio::OutputStream::try_default()
                 .expect("failed to open audio device");
 

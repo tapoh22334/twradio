@@ -9,6 +9,7 @@ mod display_bridge;
 mod voicegen_agent;
 mod voicegen_client;
 mod voicegen_filter;
+mod voicegen_data;
 mod twitter_agent;
 mod twitter_data;
 mod twitter_client;

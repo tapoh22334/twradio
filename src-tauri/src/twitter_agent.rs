@@ -34,11 +34,19 @@ pub fn start(app_handle: tauri::AppHandle,
             let tweets = match twitter_client::request_tweet_new(&token, user_id.as_str(), start_time).await {
                 Ok(t) => t,
                 Err(e) => {
-                    // TBD: Recovery if the token is expired
-                    println!("{:?}", e);
-                    authctl_tx.send(twitter_authorizator::AuthControl::Authorize).await.unwrap();
-                    token = token_rx.recv().await.unwrap();
-                    continue;
+                    match e {
+                        twitter_client::RequestError::Unauthorized => {
+                            println!("{:?}", e);
+                            authctl_tx.send(twitter_authorizator::AuthControl::Authorize).await.unwrap();
+                            token = token_rx.recv().await.unwrap();
+                            continue;
+                        },
+
+                        twitter_client::RequestError::Unknown(msg) => {
+                            panic!("{:?}", msg);
+                        },
+
+                    }
                 },
             };
 

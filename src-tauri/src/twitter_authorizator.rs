@@ -32,7 +32,7 @@ pub fn entrypoint_url() -> String {
 }
 
 pub fn new_oauth2_client() -> BasicClient {
-    let client_id = ClientId::new("YkxNZ3ZDNzU4Q1ZNdEJfd0U2cFg6MTpjaQ".to_string());
+    let client_id      = ClientId::new("YkxNZ3ZDNzU4Q1ZNdEJfd0U2cFg6MTpjaQ".to_string());
     let addr           = callback_server();
     let redirect_url   = RedirectUrl::from_url(format!("http://{addr}/callback").parse().unwrap());
     let auth_url       = AuthUrl::from_url("https://twitter.com/i/oauth2/authorize".parse().unwrap());

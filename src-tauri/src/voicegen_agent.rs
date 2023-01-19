@@ -48,7 +48,10 @@ pub fn start(app_handle: tauri::AppHandle,
                     let speech_name = match name_cache.get(&hira_name) {
                         Some(hit) => hit,
                         None => {
-                            let v = voicegen_client::request_voice(&hira_name).await.unwrap();
+                            let v = voicegen_client::request_voice(
+                                std::net::SocketAddr::from(([127, 0, 0, 1], 50031)),
+                                0,
+                                &hira_name).await.unwrap();
 
                             // To shorten TTS processing time, cache the user name speech
                             // TBD: Warning: cache out method is not implemented.
@@ -62,7 +65,10 @@ pub fn start(app_handle: tauri::AppHandle,
                     let hira_text = voicegen_filter::replace_retweet(msg.text.as_str());
                     let hira_text = voicegen_filter::replace_url(hira_text.as_str());
                     let hira_text = to_hiragana(hira_text.as_str());
-                    let speech_text = voicegen_client::request_voice(&hira_text).await.unwrap();
+                    let speech_text = voicegen_client::request_voice(
+                        std::net::SocketAddr::from(([127, 0, 0, 1], 50031)),
+                        0,
+                        &hira_name).await.unwrap();
 
                     println!("{:?}", msg.text);
                     println!("{:?}", hira_text);
