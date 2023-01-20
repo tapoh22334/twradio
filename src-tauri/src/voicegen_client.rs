@@ -42,7 +42,7 @@ pub async fn request_voice(addr: std::net::SocketAddr, speaker: u64, text: &Stri
     // Generate wav
     let url = base_url().join("synthesis").unwrap();
     let data = client.post(url)
-                    .query(&[("speaker", "0")])
+                    .query(&[("speaker", speaker.to_string().as_str())])
                     .body(audio_query)
 
                     .send()

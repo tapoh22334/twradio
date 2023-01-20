@@ -9,6 +9,7 @@ pub enum AudioControl {
     Volume(u32),
     Pause,
     Resume,
+    Stop,
     Quit,
 }
 
@@ -24,7 +25,7 @@ pub fn start(app_handle: tauri::AppHandle,
             = rodio::OutputStream::try_default()
                 .expect("failed to open audio device");
 
-        let sink = Sink::try_new(&osh).expect("failed to create new sink");
+        let mut sink = Sink::try_new(&osh).expect("failed to create new sink");
 
         audioctl_rdy_tx.blocking_send(AudioControlRdy{}).unwrap();
         let mut playing = false;
@@ -75,6 +76,11 @@ pub fn start(app_handle: tauri::AppHandle,
                         AudioControl::Resume => {
                             println!("audio_coordinator: recv Resume");
                             sink.play();
+                        },
+
+                        AudioControl::Stop => {
+                            println!("audio_coordinator: recv Stop");
+                            sink = Sink::try_new(&osh).expect("failed to create new sink");
                         },
 
                         AudioControl::Quit => {

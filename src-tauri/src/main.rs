@@ -6,6 +6,7 @@
 mod audio_player;
 mod scheduler;
 mod display_bridge;
+mod user_input;
 mod voicegen_agent;
 mod voicegen_client;
 mod voicegen_filter;
@@ -50,6 +51,16 @@ async fn set_volume(volume: u32, state: tauri::State<'_, tokio::sync::Mutex<toki
     Ok(())
 }
 
+#[tauri::command]
+async fn jump(twid: &str, state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
+    let tx = state.lock().await;
+
+    tx.send(user_input::UserInput::Jump(twid.to_string())).await.unwrap();
+    println!("tauri://backend/jump {:?}", twid);
+
+    Ok(())
+}
+
 
 const QUEUE_LENGTH : usize = 256;
 
@@ -62,7 +73,7 @@ async fn main() -> std::io::Result<()> {
     let authctl_tx_c = authctl_tx.clone();
 
     let (display_tx, display_rx)
-        = tokio::sync::mpsc::channel::<display_bridge::ViewElements>(QUEUE_LENGTH);
+        = tokio::sync::mpsc::channel::<display_bridge::DisplayContrl>(QUEUE_LENGTH);
 
     let (playbook_tx, playbook_rx) 
         = tokio::sync::mpsc::channel::<voicegen_agent::Playbook>(QUEUE_LENGTH);
@@ -76,6 +87,9 @@ async fn main() -> std::io::Result<()> {
 
     let (audioctl_rdy_tx, audioctl_rdy_rx) 
         = tokio::sync::mpsc::channel::<audio_player::AudioControlRdy>(1);
+
+    let (user_tx, user_rx)
+        = tokio::sync::mpsc::channel::<user_input::UserInput>(QUEUE_LENGTH);
 
     println!("twitter_authorizator::start");
 
@@ -102,7 +116,9 @@ async fn main() -> std::io::Result<()> {
                 playbook_tx.clone(),
                 speech_rx,
                 audioctl_tx.clone(),
-                audioctl_rdy_rx);
+                audioctl_rdy_rx,
+                user_rx
+                );
 
             println!("display_bridge::start");
             display_bridge::start(app_handle.clone(), display_rx);
@@ -124,7 +140,8 @@ async fn main() -> std::io::Result<()> {
         })
         .manage(tokio::sync::Mutex::new(authctl_tx))
         .manage(tokio::sync::Mutex::new(audioctl_tx_c))
-        .invoke_handler(tauri::generate_handler![setup_app, set_paused, set_volume])
+        .manage(tokio::sync::Mutex::new(user_tx))
+        .invoke_handler(tauri::generate_handler![setup_app, set_paused, set_volume, jump])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 

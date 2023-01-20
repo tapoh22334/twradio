@@ -17,6 +17,16 @@ import PauseRounded from '@mui/icons-material/PauseRounded';
 import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded';
 import FastForwardRounded from '@mui/icons-material/FastForwardRounded';
 import AdjustIcon from '@mui/icons-material/Adjust';
+import Alert from '@mui/material/Alert';
+import Drawer from '@mui/material/Drawer';
+import Box from '@mui/material/Box';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import MailIcon from '@mui/icons-material/Mail';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AbcIcon from '@mui/icons-material/Abc';
 
 type ViewElements = {
     tweet_id: string,
@@ -27,39 +37,11 @@ type ViewElements = {
     profile_image_url: string,
 }
 
-const format_time = (utc: string) => {
-    const twtime = new Date(utc).getTime();
-    const now = new Date().getTime();
-
-    //1000(ミリ秒) × 60(秒) × 60(分) × 24(時間) = 86400000
-    const year = 86400000 * 365;
-    const week = 86400000 * 7;
-    const day =  86400000;
-    const hour =  3600000;
-    const min =     60000;
-    const sec =      1000;
-
-    const sub = now - twtime;
-    let res;
-    if (sub > year) {
-        res = Math.floor(sub / year).toString() + "y";
-    } else if (sub > week) {
-        res = Math.floor(sub / week).toString() + "w";
-    } else if (sub > day) {
-        res = Math.floor(sub / day).toString() + "d";
-    } else if (sub > hour) {
-        res = Math.floor(sub / hour).toString() + "h";
-    } else if (sub > min) {
-        res = Math.floor(sub / min).toString() + "m";
-    } else if (sub > sec) {
-        res = Math.floor(sub / sec).toString() + "s";
-    } else {
-        res = "1s";
-    }
-    return res;
-}
-
 function App() {
+
+  const [focusTwid, setFocusTwid] = React.useState<string>(()=>{
+    return ""
+  });
 
   const [tweetList, setTweetList] = React.useState<Array<TweetLiProps>>(()=>{
     return [ ]
@@ -78,12 +60,81 @@ function App() {
     localStorage.setItem("volume", JSON.stringify(newValue as number));
   };
 
-  const [paused, setPaused] = React.useState(false);
+  const [paused, setPaused] = React.useState(true);
   const onPauseResumeClick = () => {
     setPaused(!paused);
     invoke('set_paused', {paused: !paused});
   }
 
+  const onFocusClick = () => {
+      const targetEl = document.getElementById(focusTwid)
+      targetEl?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const onSkipClick = () => {
+    const index = tweetList.findIndex((elem) => elem.tweet_id === focusTwid);
+    let id;
+    if (index in tweetList) {
+        id = tweetList[index + 1]?.tweet_id;
+    } else {
+        id = "";
+    }
+
+    invoke('jump', {twid: id});
+  }
+
+  const [drawerState, setDrawerState] = React.useState(true);
+
+  const toggleDrawer =
+    (open: boolean) =>
+    (event: React.KeyboardEvent | React.MouseEvent) => {
+      if (
+        event.type === 'keydown' &&
+        ((event as React.KeyboardEvent).key === 'Tab' ||
+          (event as React.KeyboardEvent).key === 'Shift')
+      ) {
+        return;
+      }
+
+      setDrawerState(open);
+    };
+
+  const drawerElements = () => (
+    <Box
+      sx={{ width: `var(--drawer-width)` }}
+      role="presentation"
+      onClick={toggleDrawer(false)}
+      onKeyDown={toggleDrawer(false)}
+    >
+      <List>
+
+      <Divider />
+
+      <ListItem key='Timeline' disablePadding>
+        <ListItemButton>
+          <ListItemIcon>
+            <AbcIcon />
+          </ListItemIcon>
+          <ListItemText primary='Timeline' />
+        </ListItemButton>
+      </ListItem>
+
+      <Divider />
+
+      <ListItem key='Settings' disablePadding>
+        <ListItemButton>
+          <ListItemIcon>
+            <SettingsIcon />
+          </ListItemIcon>
+          <ListItemText primary='Settings' />
+        </ListItemButton>
+      </ListItem>
+
+      <Divider />
+
+      </List>
+    </Box>
+  );
 
   React.useEffect(() => {
     listen('tauri://frontend/token-register', (event)=> {
@@ -105,7 +156,7 @@ function App() {
         }
     });
 
-    listen<ViewElements>('tauri://frontend/display', (event) => {
+    listen<ViewElements>('tauri://frontend/display/add', (event) => {
         const data: ViewElements = event.payload;
         tweetList.push(
             {tweet_id: data.tweet_id,
@@ -119,11 +170,18 @@ function App() {
         setTweetList([...tweetList]);
     });
 
-    listen<string>('tauri://frontend/scroll', (event) => {
+    listen<string>('tauri://frontend/display/delete', (event) => {
+        const twid: string = event.payload;
+        const index = tweetList.findIndex((elem) => elem.tweet_id === twid);
+        tweetList.splice(index, 1);
+        setTweetList([...tweetList]);
+    });
+
+    listen<string>('tauri://frontend/display/scroll', (event) => {
         const twid: string = event.payload;
         const targetEl = document.getElementById(twid)
         targetEl?.scrollIntoView({ behavior: 'smooth' })
-
+        setFocusTwid(twid);
         console.log(twid);
     });
 
@@ -131,83 +189,111 @@ function App() {
     invoke('setup_app').then(() => console.log('setup_app complete'));
   }, []) ;
 
+
+  React.useEffect(() => {
+        const targetEl = document.getElementById(focusTwid)
+
+        if (targetEl) {
+            targetEl?.scrollIntoView({ behavior: 'smooth' })
+            console.log(focusTwid);
+        }
+
+  }, [focusTwid]);
+
   return (
-    <div className="App">
-        <AppBar className="Head" position="sticky">
-            <Toolbar>
-                <IconButton
-                  size="large"
-                  edge="start"
-                  color="inherit"
-                  aria-label="menu"
-                  sx={{ mr: 0 }}
+    <Box className="App" >
+        <Toolbar/>
+
+        <Box sx={{ display: 'flex' }}>
+            <AppBar className="Head" position="fixed"
+                sx={{
+                  width: `calc(100% - var(--drawer-width))`,
+                  ml: `var(--drawer-width)`,
+                }}>
+
+                <Toolbar>
+                    {/*
+                    <IconButton
+                      size="large"
+                      edge="start"
+                      color="inherit"
+                      aria-label="menu"
+                      sx={{ mr: 0 }}
+                    >
+                        <MenuIcon onClick={toggleDrawer(true)}/>
+                    </IconButton>
+                    */}
+
+                    <IconButton
+                        color="inherit"
+                        onClick={onPauseResumeClick}
+                    >
+                        {paused ? (
+                            <PlayArrowRounded />
+                            ) : (
+                            <PauseRounded />
+                        )}
+                    </IconButton>
+
+                    <IconButton
+                        color="inherit"
+                        onClick={onSkipClick}>
+                        <FastForwardRounded />
+                    </IconButton>
+
+                    <IconButton
+                        color="inherit"
+                        onClick={onFocusClick}>
+                        <AdjustIcon />
+                    </IconButton>
+
+                    <VolumeUp 
+                      sx={{ mr: 1 }}
+                    />
+                    <Slider value={volume}
+                        onChange={onVolumeChange}
+                        min={0}
+                        max={100}
+                        sx={{ width: '40%', color: "inherit"}}/>
+
+                </Toolbar>
+            </AppBar>
+
+            <Box className="SideBar" >
+                {drawerElements()}
+            </Box>
+
+            <Box className="Body" >
+                <List
+                  sx={{
+                    //maxWidth: 360,
+                    bgcolor: 'background.paper',
+                  }}
                 >
-                    <MenuIcon />
-                </IconButton>
+                    {
+                        tweetList.length > 0 &&
+                            tweetList.map((row) => {
+                                return (
+                                 <React.Fragment>
+                                    <TweetLi
+                                        tweet_id={row.tweet_id}
+                                        username={row.username}
+                                        user_id={row.user_id}
+                                        time={row.time}
+                                        tweet={row.tweet}
+                                        profile_image_url={row.profile_image_url} />
+                                    <Divider component="li" />
+                                 </React.Fragment>
+                                )
+                            })
+                    }
+                </List>
+            </Box>
 
-                <IconButton
-                    color="inherit"
-                    onClick={onPauseResumeClick}
-                >
-                    {paused ? (
-                        <PlayArrowRounded />
-                        ) : (
-                        <PauseRounded />
-                    )}
-                </IconButton>
+        </Box>
 
-                {/*
-                <IconButton
-                    color="inherit">
-                    <FastForwardRounded />
-                </IconButton>
-
-                <IconButton
-                    color="inherit">
-                    <AdjustIcon />
-                </IconButton>
-                */}
-
-                <VolumeUp 
-                  sx={{ mr: 1 }}
-                />
-                <Slider value={volume}
-                    onChange={onVolumeChange}
-                    min={0}
-                    max={100}
-                    sx={{ width: '40%', color: "inherit"}}/>
-
-            </Toolbar>
-        </AppBar>
-
-        <div className="Body">
-            <List
-              sx={{
-                width: '100%',
-                //maxWidth: 360,
-                bgcolor: 'background.paper',
-              }}
-            >
-                {
-                    tweetList.length > 0 &&
-                        tweetList.map((row) => {
-                            return (
-                             <React.Fragment>
-                                <TweetLi
-                                    tweet_id={row.tweet_id}
-                                    username={row.username}
-                                    user_id={row.user_id}
-                                    time={format_time(row.time)}
-                                    tweet={row.tweet}
-                                    profile_image_url={row.profile_image_url} />
-                                <Divider component="li" />
-                             </React.Fragment>
-                            )
-                        })
-                }
-            </List>
-        </div>
-    </div>
+        <Alert className="Foot" severity="info">バグ報告等 Twitter @tapoh22334</Alert>
+    </Box>
   );
 }
 

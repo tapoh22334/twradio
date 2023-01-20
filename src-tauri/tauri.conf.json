@@ -55,10 +55,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 1200,
+        "height": 1024,
         "resizable": true,
         "title": "twradio",
-        "width": 360
+        "width": 560
       }
     ]
   }

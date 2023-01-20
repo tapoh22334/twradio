@@ -11,15 +11,17 @@ pub struct Playbook {
     pub tweet_id: String,
     pub text: String,
     pub name: String,
+    pub addr: std::net::SocketAddr,
+    pub speaker: u64,
 }
 
-impl From<scheduler::Record> for Playbook {
-    fn from(record: scheduler::Record) -> Self {
-        Playbook {
-            tweet_id: record.tweet_id,
-            text: record.text,
-            name: record.name,
-        }
+pub fn into(record: scheduler::Record, addr: std::net::SocketAddr, speaker: u64) -> Playbook {
+    Playbook {
+        tweet_id: record.tweet_id,
+        text: record.text,
+        name: record.name,
+        addr,
+        speaker
     }
 }
 
@@ -49,8 +51,8 @@ pub fn start(app_handle: tauri::AppHandle,
                         Some(hit) => hit,
                         None => {
                             let v = voicegen_client::request_voice(
-                                std::net::SocketAddr::from(([127, 0, 0, 1], 50031)),
-                                0,
+                                msg.addr,
+                                msg.speaker,
                                 &hira_name).await.unwrap();
 
                             // To shorten TTS processing time, cache the user name speech
@@ -66,9 +68,9 @@ pub fn start(app_handle: tauri::AppHandle,
                     let hira_text = voicegen_filter::replace_url(hira_text.as_str());
                     let hira_text = to_hiragana(hira_text.as_str());
                     let speech_text = voicegen_client::request_voice(
-                        std::net::SocketAddr::from(([127, 0, 0, 1], 50031)),
-                        0,
-                        &hira_name).await.unwrap();
+                        msg.addr,
+                        msg.speaker,
+                        &hira_text).await.unwrap();
 
                     println!("{:?}", msg.text);
                     println!("{:?}", hira_text);

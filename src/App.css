@@ -1,5 +1,14 @@
+
+:root {
+    --canvas-height: 100vh; 
+    --appbar-height: 56px; 
+    --footer-height: 48px;
+    --drawer-width: 180px;
+
+}
+
 html {
-  scroll-padding-top: 82px;
+  scroll-padding-top: var(--appbar-height);
 }
 
 .App {
@@ -7,12 +16,20 @@ html {
 }
 
 .Head {
-  overflow: hidden
+  overflow: hidden;
+}
+
+.SideBar {
+  overflow: scroll;
+  height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height));
+  width: var(--drawer-width);
 }
 
 .Body {
   overflow: scroll;
-  height: calc(100vh - 40px)
+  height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height));
+  width: calc(100% - var(--drawer-width));
 }
 
-
+.Foot {
+}

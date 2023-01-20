@@ -13,6 +13,13 @@ pub struct ViewElements {
     pub profile_image_url: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DisplayContrl {
+    Add(ViewElements),
+    Scroll(String),
+    Delete(String),
+}
+
 impl From<scheduler::Record> for ViewElements {
     fn from(record: scheduler::Record) -> Self {
         ViewElements {
@@ -26,15 +33,31 @@ impl From<scheduler::Record> for ViewElements {
     }
 }
 
-pub fn start(app_handle: tauri::AppHandle, mut display_rx: tokio::sync::mpsc::Receiver<ViewElements>)
+pub fn start(app_handle: tauri::AppHandle, mut display_rx: tokio::sync::mpsc::Receiver<DisplayContrl>)
 {
     tokio::spawn(async move {
         loop {
             match display_rx.recv().await {
                 Some(msg) => {
-                    app_handle
-                        .emit_all("tauri://frontend/display", msg)
-                        .unwrap();
+                    match msg {
+                        DisplayContrl::Add(ve) => {
+                            app_handle
+                                .emit_all("tauri://frontend/display/add", ve)
+                                .unwrap();
+                        },
+
+                        DisplayContrl::Delete(twid) => {
+                            app_handle
+                                .emit_all("tauri://frontend/display/delete", twid)
+                                .unwrap();
+                        },
+
+                        DisplayContrl::Scroll(twid) => {
+                            app_handle
+                                .emit_all("tauri://frontend/display/scroll", twid)
+                                .unwrap();
+                        },
+                    }
                 },
 
                 None => { return (); }
