@@ -75,20 +75,21 @@ pub fn start(app_handle: tauri::AppHandle,
              mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>
              )
 {
-    let mut focus_set = false;
-    let mut cancelling = false;
-    let mut addr = std::net::SocketAddr::from(([127, 0, 0, 1], 50031));
-    let mut speaker: u64 = 7;
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 50031));
+    let speaker: u64 = 7;
 
     let (speech_rdy_tx, speech_rdy_rx) = tokio::sync::mpsc::channel::<()>(QUEUE_LENGTH);
 
     // Context
+    let mut focus_set = false;
+    let mut cancelling = false;
     let mut wait_list = LinkedList::<Record>::new();
     let mut ready_list = LinkedList::<Record>::new();
     let mut played_list = LinkedList::<Record>::new();
     let mut processing: Option<Record> = None;
     let mut speech_cache = LinkedList::<voicegen_agent::Speech>::new();
 
+    // Operating clock
     let (clk_tx, mut clk_rx) = tokio::sync::mpsc::channel::<()>(1);
     tokio::spawn(async move {
         loop {
@@ -195,14 +196,6 @@ pub fn start(app_handle: tauri::AppHandle,
 
                                 processing = None;
                                 speech_cache.clear();
-
-                                while played_list.len() >= HISTORY_LENGTH {
-                                    let ve = played_list.pop_front().unwrap();
-                                    display_tx.send(display_bridge::DisplayContrl::Delete(ve.tweet_id)).await.unwrap();
-                                }
-                                display_tx.send(display_bridge::DisplayContrl::Scroll(twid)).await.unwrap();
-
-                                continue;
                             }
 
                             let p = ready_list.iter().position(|x| x.tweet_id == twid);
@@ -216,17 +209,13 @@ pub fn start(app_handle: tauri::AppHandle,
                                 processing = None;
                                 let tail = speech_cache.split_off(p.unwrap());
                                 speech_cache = tail;
-
-                                while played_list.len() >= HISTORY_LENGTH {
-                                    let ve = played_list.pop_front().unwrap();
-                                    display_tx.send(display_bridge::DisplayContrl::Delete(ve.tweet_id)).await.unwrap();
-                                }
-                                display_tx.send(display_bridge::DisplayContrl::Scroll(twid)).await.unwrap();
-
-                                continue;
                             }
 
-                            //panic!("unexpected tweet id");
+                            while played_list.len() >= HISTORY_LENGTH {
+                                let ve = played_list.pop_front().unwrap();
+                                display_tx.send(display_bridge::DisplayContrl::Delete(ve.tweet_id)).await.unwrap();
+                            }
+                            display_tx.send(display_bridge::DisplayContrl::Scroll(twid)).await.unwrap();
                         },
                     }
                 }
