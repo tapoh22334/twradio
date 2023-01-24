@@ -47,21 +47,25 @@ pub fn start(app_handle: tauri::AppHandle,
 
                     // Modify username for speech
                     let hira_name = to_hiragana(msg.name.as_str());
-                    let speech_name = match name_cache.get(&hira_name) {
-                        Some(hit) => hit,
-                        None => {
-                            let v = voicegen_client::request_voice(
+                    //let speech_name = match name_cache.get(&hira_name) {
+                    //    Some(hit) => hit,
+                    //    None => {
+                    //        let v = voicegen_client::request_voice(
+                    //            msg.addr,
+                    //            msg.speaker,
+                    //            &hira_name).await.unwrap();
+
+                    //        // To shorten TTS processing time, cache the user name speech
+                    //        // TBD: Warning: cache out method is not implemented.
+                    //        // It would consume more memory if the non follower is comes here.
+                    //        name_cache.insert(hira_name.clone(), v);
+                    //        name_cache.get(&hira_name).unwrap()
+                    //    },
+                    //};
+                    let speech_name = voicegen_client::request_voice(
                                 msg.addr,
                                 msg.speaker,
                                 &hira_name).await.unwrap();
-
-                            // To shorten TTS processing time, cache the user name speech
-                            // TBD: Warning: cache out method is not implemented.
-                            // It would consume more memory if the non follower is comes here.
-                            name_cache.insert(hira_name.clone(), v);
-                            name_cache.get(&hira_name).unwrap()
-                        },
-                    };
 
                     // Modify tweet message for speech
                     let hira_text = voicegen_filter::replace_retweet(msg.text.as_str());

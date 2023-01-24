@@ -7,12 +7,12 @@ pub struct Style {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Speeker {
+pub struct Speaker {
     pub name: String,
     pub speaker_uuid: String,
     pub styles: Vec<Style>,
     pub version: String,
 }
 
-pub type SpeekersResponse = Vec<Speeker>;
+pub type SpeakersResponse = Vec<Speaker>;
 

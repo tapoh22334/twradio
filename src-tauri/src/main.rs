@@ -11,6 +11,7 @@ mod voicegen_agent;
 mod voicegen_client;
 mod voicegen_filter;
 mod voicegen_data;
+mod voicegen_observer;
 mod twitter_agent;
 mod twitter_data;
 mod twitter_client;
@@ -47,6 +48,17 @@ async fn set_volume(volume: u32, state: tauri::State<'_, tokio::sync::Mutex<toki
 
     tx.send(audio_player::AudioControl::Volume(volume)).await.unwrap();
     println!("tauri://backend/set_volume {:?}", volume);
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_speaker(speaker: voicegen_observer::Speaker,
+                     state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<voicegen_observer::Speaker>>>) -> Result<(), ()> {
+    let tx = state.lock().await;
+
+    println!("tauri://backend/set_speaker {:?}", speaker);
+    tx.send(speaker).await.unwrap();
 
     Ok(())
 }
@@ -91,6 +103,9 @@ async fn main() -> std::io::Result<()> {
     let (user_tx, user_rx)
         = tokio::sync::mpsc::channel::<user_input::UserInput>(QUEUE_LENGTH);
 
+    let (speaker_tx, speaker_rx)
+        = tokio::sync::mpsc::channel::<voicegen_observer::Speaker>(1);
+
     println!("twitter_authorizator::start");
 
     tauri::Builder::default()
@@ -109,6 +124,9 @@ async fn main() -> std::io::Result<()> {
             println!("twitter_agent::start");
             let tweet_rx = twitter_agent::start(app_handle.clone(), authctl_tx_c, token_rx);
 
+            println!("voicegen_observer::start");
+            voicegen_observer::start(app_handle.clone());
+
             println!("scheduler::start");
             scheduler::start( app_handle.clone(),
                 tweet_rx,
@@ -117,7 +135,8 @@ async fn main() -> std::io::Result<()> {
                 speech_rx,
                 audioctl_tx.clone(),
                 audioctl_rdy_rx,
-                user_rx
+                user_rx,
+                speaker_rx,
                 );
 
             println!("display_bridge::start");
@@ -141,7 +160,8 @@ async fn main() -> std::io::Result<()> {
         .manage(tokio::sync::Mutex::new(authctl_tx))
         .manage(tokio::sync::Mutex::new(audioctl_tx_c))
         .manage(tokio::sync::Mutex::new(user_tx))
-        .invoke_handler(tauri::generate_handler![setup_app, set_paused, set_volume, jump])
+        .manage(tokio::sync::Mutex::new(speaker_tx))
+        .invoke_handler(tauri::generate_handler![setup_app, set_paused, set_volume, set_speaker, jump])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 

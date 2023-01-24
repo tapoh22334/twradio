@@ -1,13 +1,11 @@
 import React from 'react';
 import './App.css';
 
-import AppSettings from './AppSettings';
-
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 
 import { invoke } from '@tauri-apps/api'
 import { listen, emit } from '@tauri-apps/api/event'
-import { TweetLi, TweetLiProps } from './components/TweetCard'
+import { TweetLi, TweetProps, TweetLiProps } from './components/TweetCard'
 
 import List from '@mui/material/List';
 import Divider from '@mui/material/Divider';
@@ -22,12 +20,19 @@ import FastForwardRounded from '@mui/icons-material/FastForwardRounded';
 import AdjustIcon from '@mui/icons-material/Adjust';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import InfoIcon from '@mui/icons-material/Info';
+import Button from '@mui/material/Button';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AbcIcon from '@mui/icons-material/Abc';
+import FormControl from '@mui/material/FormControl';
+import MenuItem from '@mui/material/MenuItem';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Stack from '@mui/material/Stack';
+
 
 type ViewElements = {
     tweet_id: string,
@@ -43,7 +48,7 @@ function App() {
     return ""
   });
 
-  const [tweetList, setTweetList] = React.useState<Array<TweetLiProps>>(()=>{
+  const [tweetList, setTweetList] = React.useState<Array<TweetProps>>(()=>{
     return []
   });
 
@@ -78,10 +83,96 @@ function App() {
 
   const [volume, setVolume] = React.useState(() => {
     const json = localStorage.getItem("volume");
-    const initVolume = json === null ? null : JSON.parse(json);
+    const parsedInitVolume = json === null ? null : JSON.parse(json);
+    const initVolume = parsedInitVolume === null ? 80 : parsedInitVolume;
 
-    return initVolume === null ? 80 : initVolume;
+    invoke('set_volume', {volume: initVolume as number});
+    return initVolume;
   });
+
+  // Used in setting context
+    type SpeakerInfo = {
+        addr: string,
+        engine: string,
+        name: string,
+        style: string,
+        speaker: string,
+    }
+
+    const [speaker, setSpeaker] = React.useState(() => {
+        const json = localStorage.getItem("speaker");
+        const parsedInitSpeaker = json === null ? null : JSON.parse(json);
+        const initSpeaker = parsedInitSpeaker === null ? "0" : parsedInitSpeaker;
+
+        //const index = speakerList.findIndex((e) => e.speaker === initSpeaker);
+        //console.log(speakerList[index]]);
+        //invoke('set_speaker', {volume: initSpeaker as string});
+        return initSpeaker;
+    });
+    const [speakerList, setSpeakerList] = React.useState<Array<SpeakerInfo>>(()=>{
+      return []
+    });
+
+    const onSpeakerChange = (event: SelectChangeEvent) => {
+        const value = event.target.value as string
+        console.log(value);
+
+        setSpeaker(value);
+        const index = speakerList.findIndex((e) => e.speaker === value);
+        console.log(speakerList[index]);
+        invoke("set_speaker", {speaker: speakerList[index]});
+        localStorage.setItem("speaker", JSON.stringify(value));
+    };
+
+    listen<Array<SpeakerInfo>>('tauri://frontend/speakers-register', (event)=> {
+        const speakers: Array<SpeakerInfo> = event.payload;
+        console.log(speakers);
+
+        speakerList.splice(0);
+        for (let sp of speakers) {
+            speakerList.push(
+                {
+                    addr: sp.addr,
+                    engine: sp.engine,
+                    name: sp.name,
+                    style: sp.style,
+                    speaker: sp.speaker,
+                }
+            )
+        }
+
+        const index = speakerList.findIndex((e) => e.speaker === speaker);
+        invoke("set_speaker", {speaker: speakerList[index]});
+
+        setSpeakerList([...speakerList]);
+    });
+
+
+    const AppSettings = () => {
+        return (
+            <Box margin={3} sx={{ justifyContent: 'center' }}>
+                <Stack direction="row" spacing={2}>
+                    <FormControl size="small" >
+                      <Select
+                        labelId="voicelabel"
+                        id="voice-select"
+                        value={speaker}
+                        onChange={onSpeakerChange}
+                      >
+                        {
+                            speakerList.length > 0 &&
+                            speakerList.map((speaker, index) => {
+                                return (<MenuItem value={speaker.speaker}>{speaker.engine}:{speaker.name}[{speaker.style}]</MenuItem>)
+                            })
+                        }
+                      </Select>
+                    </FormControl>
+                </Stack>
+            </Box>
+        );
+
+    }
+  // <- Used in setting context
 
   React.useEffect(() => {
     listen('tauri://frontend/token-register', (event)=> {
@@ -133,7 +224,10 @@ function App() {
     });
 
     console.log("invoke setup_app function");
+
     invoke('setup_app').then(() => console.log('setup_app complete'));
+    // 'emit, listen' works correct from here !!
+    emit('tauri://backend/ipc-init');
   }, []) ;
 
 
@@ -147,6 +241,7 @@ function App() {
 
   }, [focusTwid]);
 
+
     const drawerElements = () => (
     <Box
       sx={{ width: `var(--drawer-width)` }}
@@ -155,11 +250,11 @@ function App() {
       <List>
 
       <Divider />
+
+      <Link style={{ textDecoration: 'none' }} to="/">
       <ListItem
         key='Timeline'
         disablePadding
-        component="a"
-        href="/"
         >
         <ListItemButton>
           <ListItemIcon>
@@ -168,14 +263,14 @@ function App() {
           <ListItemText primary='Timeline' />
         </ListItemButton>
       </ListItem>
+      </Link>
 
       <Divider />
 
+      <Link style={{ textDecoration: 'none' }} to="/settings">
       <ListItem
-        key='Timeline'
+        key='Settings'
         disablePadding
-        component="a"
-        href="/settings"
         >
         <ListItemButton>
           <ListItemIcon>
@@ -184,6 +279,23 @@ function App() {
           <ListItemText primary='Settings' />
         </ListItemButton>
       </ListItem>
+      </Link>
+
+      <Divider />
+
+      <Link style={{ textDecoration: 'none' }} to="/licenses">
+      <ListItem
+        key='Licenses'
+        disablePadding
+        >
+        <ListItemButton>
+          <ListItemIcon>
+            <InfoIcon />
+          </ListItemIcon>
+          <ListItemText primary='Licenses' />
+        </ListItemButton>
+      </ListItem>
+      </Link>
 
       <Divider />
 
@@ -257,7 +369,10 @@ function App() {
                                 user_id={row.user_id}
                                 time={row.time}
                                 tweet={row.tweet}
-                                profile_image_url={row.profile_image_url} />
+                                profile_image_url={row.profile_image_url}
+                                //focus={row.tweet_id === focusTwid ? true : false}
+                                focus={false}
+                                />
                             <Divider component="li" />
                          </React.Fragment>
                         )
@@ -269,6 +384,7 @@ function App() {
 
   return (
     <Box className="App" >
+        <BrowserRouter>
         <Toolbar/>
 
         <Box sx={{ display: 'flex' }}>
@@ -279,18 +395,17 @@ function App() {
             </Box>
 
             <Box className="Body" >
-                <BrowserRouter>
                 <Routes>
                     <Route path={`/`} element={<Body />} />
                     <Route path={`/settings/`} element={<AppSettings />} />
                     {/*<Route path={`/licenses/`} element={<Licenses />} />*/}
                 </Routes>
-                </BrowserRouter>
             </Box>
 
         </Box>
 
         <Alert className="Foot" severity="info">バグ報告等 Twitter @tapoh22334</Alert>
+        </BrowserRouter>
     </Box>
   );
 }

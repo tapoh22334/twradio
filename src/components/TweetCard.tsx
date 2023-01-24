@@ -7,13 +7,23 @@ import ListItemText from '@mui/material/ListItemText';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 
+export type TweetProps = {
+    tweet_id: string,
+    username: string,
+    user_id: string,
+    time: string,
+    tweet: string,
+    profile_image_url: string,
+}
+
 export type TweetLiProps = {
     tweet_id: string,
     username: string,
     user_id: string,
     time: string,
     tweet: string,
-    profile_image_url: string
+    profile_image_url: string,
+    focus: boolean,
 }
 
 const format_time = (utc: string) => {
@@ -48,12 +58,8 @@ const format_time = (utc: string) => {
     return res;
 }
 
-export const TweetLi: React.FC<TweetLiProps> = (props) => {
-  return (
-      <ListItem id={props.tweet_id} alignItems="flex-start">
-        <ListItemAvatar>
-          <Avatar alt="Cindy Baker" src={props.profile_image_url} />
-        </ListItemAvatar>
+const TweetLiText: React.FC<TweetLiProps> = (props) => {
+    return (
         <ListItemText
           primary={
             <React.Fragment>
@@ -84,7 +90,29 @@ export const TweetLi: React.FC<TweetLiProps> = (props) => {
           secondary={ props.tweet }
 
         />
-      </ListItem>
+    );
+}
 
-  );
+export const TweetLi: React.FC<TweetLiProps> = (props) => {
+  if (props.focus) {
+      return (
+          <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px", border: "1px solid #6c757d", borderRadius: "8px"}}>
+            <ListItemAvatar>
+              <Avatar alt="Cindy Baker" src={props.profile_image_url} />
+            </ListItemAvatar>
+            <TweetLiText {...props} />
+          </ListItem>
+
+      );
+  } else {
+      return (
+          <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px"}}>
+            <ListItemAvatar>
+              <Avatar alt="Cindy Baker" src={props.profile_image_url} />
+            </ListItemAvatar>
+            <TweetLiText {...props} />
+          </ListItem>
+
+      );
+  }
 }

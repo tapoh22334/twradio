@@ -13,6 +13,7 @@ html {
 
 .App {
   text-align: center;
+  overflow: hidden;
 }
 
 .Head {
@@ -20,13 +21,13 @@ html {
 }
 
 .SideBar {
-  overflow: scroll;
+  overflow: auto;
   height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height));
   width: var(--drawer-width);
 }
 
 .Body {
-  overflow: scroll;
+  overflow: auto;
   height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height));
   width: calc(100% - var(--drawer-width));
 }

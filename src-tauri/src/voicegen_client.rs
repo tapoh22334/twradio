@@ -60,7 +60,7 @@ pub async fn request_voice(addr: std::net::SocketAddr, speaker: u64, text: &Stri
     Ok(data.to_vec())
 }
 
-pub async fn request_speakers(addr: std::net::SocketAddr) -> Result<voicegen_data::SpeekersResponse, RequestError>
+pub async fn request_speakers(addr: std::net::SocketAddr) -> Result<voicegen_data::SpeakersResponse, RequestError>
 {
     let client = reqwest::Client::new();
     let url: String = format!("http://{}/speakers", addr);
@@ -78,7 +78,7 @@ pub async fn request_speakers(addr: std::net::SocketAddr) -> Result<voicegen_dat
     //println!("{:?}", speakers_response);
 
     let speakers_response = 
-            serde_json::from_str::<voicegen_data::SpeekersResponse>(speakers_response.as_str())
+            serde_json::from_str::<voicegen_data::SpeakersResponse>(speakers_response.as_str())
                     .map_err(|e| { 
                         RequestError::Unknown(e.to_string())
                     })?;
@@ -92,7 +92,7 @@ mod test {
 
     #[tokio::test]
     async fn ts_request_speakers() {
-        let speakers_response: voicegen_data::SpeekersResponse =
+        let speakers_response: voicegen_data::SpeakersResponse =
             request_speakers(std::net::SocketAddr::from(([127, 0, 0, 1], 50031)))
             .await
             .unwrap();
