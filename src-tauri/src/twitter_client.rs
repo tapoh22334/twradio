@@ -57,7 +57,7 @@ pub async fn request_tweet_new(token: &Oauth2Token, user_id: &str, start_time: O
     let mut query = [("expansions", "author_id"),
                     ("user.fields", "profile_image_url"),
                     ("tweet.fields", "created_at"),
-                    ("max_results", "25")]
+                    ("max_results", "5")]
                         .to_vec();
     match start_time {
         Some(s) => { query.push(("start_time", s)); },

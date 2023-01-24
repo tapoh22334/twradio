@@ -35,35 +35,19 @@ pub fn into(tweet: &twitter_data::Tweet, users: &Vec<twitter_data::User>) -> Rec
     }
 }
 
-fn wait_both(mut speech_rdy_rx: tokio::sync::mpsc::Receiver<()>,
-                   mut audio_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>)
-            -> tokio::sync::mpsc::Receiver<()> {
-    let (tx, rx) = tokio::sync::mpsc::channel::<()>(1);
-
-    tokio::spawn(async move {
-        loop {
-            let _ = audio_rdy_rx.recv().await.unwrap();
-            let _ = speech_rdy_rx.recv().await.unwrap();
-            tx.send(()).await.unwrap();
-        }
-    });
-
-    rx
-}
-
 pub fn remove<T>(list: &mut LinkedList::<T>, index: usize) -> T {
-        if index == 0 {
-            let v = list.pop_front().unwrap();
+    if index == 0 {
+        let v = list.pop_front().unwrap();
 
-            return v;
-        } else {
-            // split_off function should compute in O(n) time.
-            let mut split = list.split_off(index);
-            let v = split.pop_front().unwrap();
-            list.append(&mut split);
+        return v;
+    } else {
+        // split_off function should compute in O(n) time.
+        let mut split = list.split_off(index);
+        let v = split.pop_front().unwrap();
+        list.append(&mut split);
 
-            return v;
-        }
+        return v;
+    }
 }
 
 struct Context {
@@ -100,14 +84,11 @@ pub fn start(app_handle: tauri::AppHandle,
              playbook_tx: tokio::sync::mpsc::Sender<voicegen_agent::Playbook>,
              mut speech_rx: tokio::sync::mpsc::Receiver<voicegen_agent::Speech>,
              audioctl_tx: tokio::sync::mpsc::Sender<audio_player::AudioControl>,
-             audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>,
+             mut audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>,
              mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>,
              mut speaker_rx: tokio::sync::mpsc::Receiver<voicegen_observer::Speaker>,
              )
 {
-
-    let (speech_rdy_tx, speech_rdy_rx) = tokio::sync::mpsc::channel::<()>(QUEUE_LENGTH);
-
     // Context
     let mut ctx = Context::new();
 
@@ -119,8 +100,6 @@ pub fn start(app_handle: tauri::AppHandle,
             let _ = clk_tx.send(()).await;
         }
     });
-
-    let mut audio_speech_rdy_rx = wait_both(speech_rdy_rx, audioctl_rdy_rx);
 
     tokio::spawn(async move {
         loop {
@@ -146,49 +125,81 @@ pub fn start(app_handle: tauri::AppHandle,
                 }
 
                 Some(_) = clk_rx.recv() => {
-                    if ctx.wait_list.len() == 0 { continue; } 
-                    if ctx.processing.is_some() { continue; }
-                    if ctx.cancelling { continue ; }
+                    // TTS Start
+                    if ctx.wait_list.len() > 0
+                        && ctx.processing.is_none()
+                        && !ctx.cancelling {
 
-                    ctx.processing = Some(ctx.wait_list.front().unwrap().clone());
-                    println!("<clk>start processing {:?}", ctx.processing.as_ref().unwrap().tweet_id);
-                    playbook_tx.send(voicegen_agent::into(ctx.processing.clone().unwrap().clone().into(), ctx.addr, ctx.speaker)).await.unwrap();
-                }
+                        ctx.processing = Some(ctx.wait_list.front().unwrap().clone());
+                        playbook_tx.send(voicegen_agent::into(ctx.processing.clone().unwrap().clone().into(), ctx.addr, ctx.speaker)).await.unwrap();
 
-                Some(speech) = speech_rx.recv() => {
-                    println!("Text to speech is complete {:?}", speech.tweet_id);
-                    if ctx.cancelling {
-                        // Ignore processing result.
-                        println!("tts result is ignored");
-                        ctx.cancelling = false;
-                        continue;
-                    };
+                        println!("<clk>start processing {:?}", ctx.processing.as_ref().unwrap().tweet_id);
+                    } 
 
-                    ctx.ready_list.push_back(ctx.wait_list.pop_front().unwrap());
-                    ctx.processing = None;
+                    // Process TTS Result
+                    match speech_rx.try_recv() {
+                        Ok(speech) => {
+                            println!("Text to speech is complete {:?}", speech.tweet_id);
+                            if ctx.cancelling {
+                                // Ignore processing result.
+                                println!("tts result is ignored");
+                                ctx.cancelling = false;
+                                continue;
+                            };
 
-                    ctx.speech_cache.push_back(speech);
-                    speech_rdy_tx.send(()).await.unwrap();
-                }
+                            ctx.processing = None;
+                            ctx.ready_list.push_back(ctx.wait_list.pop_front().unwrap());
+                            ctx.speech_cache.push_back(speech);
+                        },
 
-                Some(_) = audio_speech_rdy_rx.recv() => {
-                    println!("Audio and speech is ready, start playing.");
+                        Err(e) => {
+                            match e {
+                                tokio::sync::mpsc::error::TryRecvError::Empty => {},
 
-                    let target_tw = ctx.ready_list.pop_front().unwrap();
-                    let target_twid = target_tw.tweet_id.clone();
-
-                    let index = ctx.speech_cache.iter().position(|x| x.tweet_id == target_twid).unwrap();
-                    let s = remove(&mut ctx.speech_cache, index);
-                    let voice_pack = vec![s.name, s.text];
-                    audioctl_tx.send(audio_player::AudioControl::PlayMulti(voice_pack)).await.unwrap();
-
-                    ctx.played_list.push_back(target_tw);
-                    if ctx.played_list.len() > HISTORY_LENGTH {
-                        let ve = ctx.played_list.pop_front().unwrap();
-                        display_tx.send(display_bridge::DisplayContrl::Delete(ve.tweet_id)).await.unwrap();
+                                e => {
+                                    println!("scheduler: voicegen_agent closes pci {:?}", e);
+                                    return ();
+                                }
+                            }
+                        },
                     }
 
-                    display_tx.send(display_bridge::DisplayContrl::Scroll(target_twid)).await.unwrap();
+                    // Play speech
+                    if ctx.ready_list.len() > 0 {
+                        match audioctl_rdy_rx.try_recv() {
+                            Ok(_) => {
+                                println!("Audio and speech is ready, start playing.");
+
+                                let target_tw = ctx.ready_list.pop_front().unwrap();
+                                let target_twid = target_tw.tweet_id.clone();
+
+                                let index = ctx.speech_cache.iter().position(|x| x.tweet_id == target_twid).unwrap();
+                                let s = remove(&mut ctx.speech_cache, index);
+
+                                let voice_pack = vec![s.name, s.text];
+                                audioctl_tx.send(audio_player::AudioControl::PlayMulti(voice_pack)).await.unwrap();
+
+                                ctx.played_list.push_back(target_tw);
+                                if ctx.played_list.len() > HISTORY_LENGTH {
+                                    let ve = ctx.played_list.pop_front().unwrap();
+                                    display_tx.send(display_bridge::DisplayContrl::Delete(ve.tweet_id)).await.unwrap();
+                                }
+                                display_tx.send(display_bridge::DisplayContrl::Scroll(target_twid)).await.unwrap();
+                            },
+
+                            Err(e) => {
+                                match e {
+                                    tokio::sync::mpsc::error::TryRecvError::Empty => {},
+
+                                    e => {
+                                        println!("scheduler: audio player closes pci {:?}", e);
+                                        return ();
+                                    }
+                                }
+                            },
+                        }
+                    }
+
                 }
 
                 Some(user) = user_rx.recv() => {
@@ -199,9 +210,7 @@ pub fn start(app_handle: tauri::AppHandle,
                             audioctl_tx.send(audio_player::AudioControl::Stop).await.unwrap();
 
                             // Cancel current playing speech only;
-                            if twid == "" {
-                                continue;
-                            }
+                            if twid == "" { continue; }
 
                             if ctx.processing.is_some() {
                                 ctx.cancelling = true;
@@ -251,10 +260,10 @@ pub fn start(app_handle: tauri::AppHandle,
                         ctx.processing = None;
                         ctx.cancelling = true;
                     }
-                    if ctx.ready_list.len() > 2 {
+                    if ctx.ready_list.len() > 0 {
                         ctx.ready_list.append(&mut ctx.wait_list);
-                        ctx.wait_list = ctx.ready_list.split_off(1);
-                        ctx.speech_cache.split_off(1);
+                        ctx.wait_list = ctx.ready_list.split_off(0);
+                        ctx.speech_cache.split_off(0);
                     }
 
                 }

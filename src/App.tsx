@@ -58,7 +58,7 @@ function App() {
     localStorage.setItem("volume", JSON.stringify(newValue as number));
   };
 
-  const [paused, setPaused] = React.useState(true);
+  const [paused, setPaused] = React.useState(false);
   const onPauseResumeClick = () => {
     setPaused(!paused);
     invoke('set_paused', {paused: !paused});
