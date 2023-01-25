@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api'
 import { listen, emit } from '@tauri-apps/api/event'
 import { exit } from '@tauri-apps/api/process';
 import { TweetLi, TweetProps, TweetLiProps } from './components/TweetCard'
+import Licenses from './components/LicenseView'
 
 import List from '@mui/material/List';
 import Divider from '@mui/material/Divider';
@@ -444,7 +445,7 @@ function App() {
                 <Routes>
                     <Route path={`/`} element={<Body />} />
                     <Route path={`/settings/`} element={<AppSettings />} />
-                    {/*<Route path={`/licenses/`} element={<Licenses />} />*/}
+                    <Route path={`/licenses/`} element={<Licenses />} />
                 </Routes>
             </Box>
         </Box>

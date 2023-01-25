@@ -12,7 +12,8 @@ html {
 }
 
 .App {
-  text-align: center;
+  #text-align: center;
+  overflow-wrap: break-word;
   overflow: hidden;
 }
 
