@@ -4,7 +4,7 @@ use crate::scheduler;
 use crate::twitter_client;
 use crate::twitter_authorizator;
 
-const QUEUE_LENGTH : usize = 256;
+const QUEUE_LENGTH : usize = 24;
 const REQUEST_PERIOD: u64 = 15000; // milliseconds
 
 

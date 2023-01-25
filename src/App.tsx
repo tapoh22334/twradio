@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 
 import { invoke } from '@tauri-apps/api'
 import { listen, emit } from '@tauri-apps/api/event'
+import { exit } from '@tauri-apps/api/process';
 import { TweetLi, TweetProps, TweetLiProps } from './components/TweetCard'
 
 import List from '@mui/material/List';
@@ -21,12 +22,15 @@ import AdjustIcon from '@mui/icons-material/Adjust';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import InfoIcon from '@mui/icons-material/Info';
+import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
+import LogoutIcon from '@mui/icons-material/Logout';
+import LoginIcon from '@mui/icons-material/Login';
 import AbcIcon from '@mui/icons-material/Abc';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
@@ -68,6 +72,14 @@ function App() {
       const targetEl = document.getElementById(focusTwid)
       targetEl?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  const [loggedin, setLoggedin] = React.useState(true);
+  const onLogoutClick = () => {
+      setLoggedin(!loggedin);
+      if (loggedin) {
+        emit('tauri://frontend/token-unregister');
+      }
+  };
 
   const onSkipClick = () => {
     const index = tweetList.findIndex((elem) => elem.tweet_id === focusTwid);
@@ -150,24 +162,25 @@ function App() {
 
     const AppSettings = () => {
         return (
-            <Box margin={3} sx={{ justifyContent: 'center' }}>
-                <Stack direction="row" spacing={2}>
-                    <FormControl size="small" >
-                      <Select
-                        labelId="voicelabel"
-                        id="voice-select"
-                        value={speaker}
-                        onChange={onSpeakerChange}
-                      >
-                        {
-                            speakerList.length > 0 &&
-                            speakerList.map((speaker, index) => {
-                                return (<MenuItem value={speaker.speaker}>{speaker.engine}:{speaker.name}[{speaker.style}]</MenuItem>)
-                            })
-                        }
-                      </Select>
-                    </FormControl>
-                </Stack>
+            <Box margin={2}>
+                <Typography gutterBottom>
+                  声
+                </Typography>
+                <FormControl size="small" >
+                  <Select
+                    labelId="voicelabel"
+                    id="voice-select"
+                    value={speaker}
+                    onChange={onSpeakerChange}
+                  >
+                    {
+                        speakerList.length > 0 &&
+                        speakerList.map((speaker, index) => {
+                            return (<MenuItem value={speaker.speaker}>{speaker.engine}:{speaker.name}[{speaker.style}]</MenuItem>)
+                        })
+                    }
+                  </Select>
+                </FormControl>
             </Box>
         );
 
@@ -178,6 +191,12 @@ function App() {
     listen('tauri://frontend/token-register', (event)=> {
         console.log(event);
         localStorage.setItem("token", JSON.stringify(event.payload));
+    });
+
+    listen('tauri://frontend/token-unregister', (event)=> {
+        console.log(event);
+        localStorage.removeItem("token");
+        exit(1);
     });
 
     listen('tauri://frontend/token-request', (event)=> {
@@ -285,24 +304,24 @@ function App() {
 
       <Link style={{ textDecoration: 'none' }} to="/licenses">
       <ListItem
-        key='Licenses'
+        key='Information'
         disablePadding
         >
         <ListItemButton>
           <ListItemIcon>
             <InfoIcon />
           </ListItemIcon>
-          <ListItemText primary='Licenses' />
+          <ListItemText primary='Information' />
         </ListItemButton>
       </ListItem>
       </Link>
 
       <Divider />
 
+
       </List>
     </Box>
     );
-
 
     const TWAppBar = () => {
     return (
@@ -382,6 +401,33 @@ function App() {
      );
     }
 
+    const LeftFoot = () => {
+        return (
+          <Box>
+              <Divider />
+
+                {loggedin ? 
+                (
+                    <ListItemButton onClick={onLogoutClick}>
+                        <ListItemIcon>
+                          <LogoutIcon />
+                        </ListItemIcon>
+                        <ListItemText primary='Logout' />
+                    </ListItemButton>
+                ) :
+                (
+                    <ListItemButton onClick={onLogoutClick}>
+                        <ListItemIcon>
+                          <LoginIcon />
+                        </ListItemIcon>
+                        <ListItemText primary='Login' />
+                    </ListItemButton>
+                )
+                }
+          </Box>
+        );
+    }
+
   return (
     <Box className="App" >
         <BrowserRouter>
@@ -401,10 +447,15 @@ function App() {
                     {/*<Route path={`/licenses/`} element={<Licenses />} />*/}
                 </Routes>
             </Box>
-
         </Box>
 
-        <Alert className="Foot" severity="info">バグ報告等 Twitter @tapoh22334</Alert>
+        <Box sx={{ display: 'flex' }}>
+            <Box className="LeftFoot ">
+                <LeftFoot/>
+            </Box>
+            <Alert className="RightFoot" severity="info">バグ報告等 Twitter @tapoh22334</Alert>
+        </Box>
+
         </BrowserRouter>
     </Box>
   );

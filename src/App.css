@@ -21,16 +21,23 @@ html {
 }
 
 .SideBar {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height));
   width: var(--drawer-width);
 }
 
 .Body {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height));
-  width: calc(100% - var(--drawer-width));
+  width: calc(100vw - var(--drawer-width));
 }
 
-.Foot {
+
+.LeftFoot {
+  width: var(--drawer-width);
+}
+.RightFoot {
+  width: calc(100vw - var(--drawer-width));
 }
