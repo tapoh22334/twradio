@@ -32,6 +32,7 @@ pub fn start(app_handle: tauri::AppHandle,
 
         loop {
             let tweets = match twitter_client::request_tweet_new(&token, user_id.as_str(), start_time).await {
+            //let tweets = match twitter_client::request_user_timeline(&token, user_id.as_str(), start_time).await {
                 Ok(t) => t,
                 Err(e) => {
                     match e {
