@@ -2,15 +2,6 @@
 
 <head>
     <style>
-        @media (prefers-color-scheme: dark) {
-            body {
-                background: #333;
-                color: white;
-            }
-            a {
-                color: skyblue;
-            }
-        }
         .container {
             font-family: sans-serif;
             max-width: 800px;

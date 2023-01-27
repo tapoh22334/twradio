@@ -1,0 +1,37 @@
+<html>
+
+<head>
+</head>
+
+<body>
+    <main class="container">
+        <div>
+            <h2>ついよみ v0.1.0</h2>
+            <p>本ソフトウェアはツイッターのタイムラインを読み上げます。<br>
+            使用するためには<a href="https://coeiroink.com/download">COEIROINK v1.6.0</a>が別途必要です。<br>
+            他のバージョンでの動作は検証していません</p>
+        </div>
+
+        <div>
+            <h2>使い方</h3>
+            <ul>
+                <li>COEIROINKを起動</li>
+                <li>本ソフトウェアを起動するとブラウザが開く</li>
+                <li>ブラウザ上で本アプリによるTwitterの使用を許可する</li>
+                <li>読み上げが始まります</li>
+            </ul>
+        </div>
+
+        <div id="LicenseText">
+            <h2 class="page-title">The MIT License</h2>
+            <p>Copyright 2023 tapoh22334</p>
+
+            <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+
+            <p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+
+            <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+        </div>
+<body>
+
+</html>

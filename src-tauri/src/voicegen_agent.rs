@@ -6,6 +6,8 @@ use wana_kana::to_hiragana::*;
 
 use std::collections::HashMap;
 
+use tauri::Manager;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Playbook {
     pub tweet_id: String,
@@ -37,8 +39,18 @@ pub fn start(app_handle: tauri::AppHandle,
              speech_tx: tokio::sync::mpsc::Sender<Speech>
              )
 {
+    // Wait while speaker detect
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let ctx = std::sync::Mutex::new(Some(tx));
+    let id = app_handle.clone().listen_global("tauri://backend/speakers-ready", move |event| {
+        let mut rdy_tx = ctx.lock().unwrap();
+        rdy_tx.take().unwrap().send(()).unwrap()
+    });
 
     tokio::spawn(async move {
+        // Wait while speaker detect
+        let _ = rx.await.unwrap();
+        app_handle.unlisten(id);
 
         let mut name_cache: HashMap::<String, Vec<u8>> = HashMap::new();
         loop {

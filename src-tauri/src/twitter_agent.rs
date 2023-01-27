@@ -5,7 +5,7 @@ use crate::twitter_client;
 use crate::twitter_authorizator;
 
 const QUEUE_LENGTH : usize = 24;
-const REQUEST_PERIOD: u64 = 15000; // milliseconds
+const REQUEST_PERIOD: u64 = 10000; // milliseconds
 
 
 pub fn start(app_handle: tauri::AppHandle, 

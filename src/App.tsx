@@ -248,6 +248,12 @@ function App() {
     invoke('setup_app').then(() => console.log('setup_app complete'));
     // 'emit, listen' works correct from here !!
     emit('tauri://backend/ipc-init');
+
+    listen('tauri://frontend/speakers-ready', (event)=> {
+        console.log('tauri://frontend/speakers-ready');
+        emit("tauri://backend/speakers-ready");
+    });
+
   }, []) ;
 
 
@@ -454,7 +460,9 @@ function App() {
             <Box className="LeftFoot ">
                 <LeftFoot/>
             </Box>
-            <Alert className="RightFoot" severity="info">バグ報告等 Twitter @tapoh22334</Alert>
+            <Box className="RightFoot" >
+                <Alert severity="info">バグ報告等 Twitter @tapoh22334</Alert>
+            </Box>
         </Box>
 
         </BrowserRouter>

@@ -61,6 +61,10 @@ pub fn start(app_handle: tauri::AppHandle)
                             handle
                                 .emit_all("tauri://frontend/speakers-register", vec)
                                 .unwrap();
+
+                            handle
+                                .emit_all("tauri://frontend/speakers-ready", ())
+                                .unwrap();
                         }
                     },
 

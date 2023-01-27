@@ -80,7 +80,9 @@ pub fn start(app_handle: tauri::AppHandle,
 
                         AudioControl::Stop => {
                             println!("audio_coordinator: recv Stop");
+                            let vol = sink.volume();
                             sink = Sink::try_new(&osh).expect("failed to create new sink");
+                            sink.set_volume(vol);
                         },
 
                         AudioControl::Quit => {

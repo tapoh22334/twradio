@@ -88,7 +88,7 @@ async fn main() -> std::io::Result<()> {
         = tokio::sync::mpsc::channel::<display_bridge::DisplayContrl>(QUEUE_LENGTH);
 
     let (playbook_tx, playbook_rx) 
-        = tokio::sync::mpsc::channel::<voicegen_agent::Playbook>(QUEUE_LENGTH);
+        = tokio::sync::mpsc::channel::<voicegen_agent::Playbook>(1);
 
     let (speech_tx, speech_rx) 
         = tokio::sync::mpsc::channel::<voicegen_agent::Speech>(QUEUE_LENGTH);

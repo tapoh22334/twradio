@@ -7,7 +7,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "twradio",
+    "productName": "ついよみ",
     "version": "0.1.0"
   },
   "tauri": {
@@ -58,7 +58,7 @@
         "fullscreen": false,
         "height": 1024,
         "resizable": true,
-        "title": "twradio",
+        "title": "ついよみ",
         "width": 560
       }
     ]

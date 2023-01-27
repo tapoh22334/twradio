@@ -10,7 +10,7 @@ use crate::user_input;
 use crate::voicegen_observer;
 
 const QUEUE_LENGTH : usize = 24;
-const HISTORY_LENGTH: usize = 2;
+const HISTORY_LENGTH: usize = 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
@@ -55,10 +55,10 @@ struct Context {
     pub speaker: u64,
     pub focus_set: bool,
     pub cancelling: bool,
+    pub tts_processing: bool,
     pub wait_list: LinkedList::<Record>,
     pub ready_list: LinkedList::<Record>,
     pub played_list: LinkedList::<Record>,
-    pub processing: Option<Record>,
     pub speech_cache: LinkedList::<voicegen_agent::Speech>,
 }
 
@@ -66,13 +66,13 @@ impl Context {
     pub fn new() -> Self {
         Context {
             addr: std::net::SocketAddr::from(([127, 0, 0, 1], 50031)),
-            speaker: 7,
+            speaker: 0,
             focus_set: false,
             cancelling: false,
+            tts_processing: false,
             wait_list: LinkedList::<Record>::new(),
             ready_list: LinkedList::<Record>::new(),
             played_list: LinkedList::<Record>::new(),
-            processing: Option::<Record>::None,
             speech_cache: LinkedList::<voicegen_agent::Speech>::new(),
         }
     }
@@ -103,11 +103,13 @@ pub fn start(app_handle: tauri::AppHandle,
 
     tokio::spawn(async move {
         loop {
-            println!("{:?}, {:?}, {:?}, {:?}",
+            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
                 ctx.wait_list.len(),
                 ctx.ready_list.len(),
                 ctx.played_list.len(),
-                ctx.speech_cache.len());
+                ctx.speech_cache.len(),
+                ctx.cancelling,
+                ctx.tts_processing);
 
             print!("scheduler: Select> ");
             tokio::select!{
@@ -127,13 +129,14 @@ pub fn start(app_handle: tauri::AppHandle,
                 Some(_) = clk_rx.recv() => {
                     // TTS Start
                     if ctx.wait_list.len() > 0
-                        && ctx.processing.is_none()
+                        && !ctx.tts_processing
                         && !ctx.cancelling {
 
-                        ctx.processing = Some(ctx.wait_list.front().unwrap().clone());
-                        playbook_tx.send(voicegen_agent::into(ctx.processing.clone().unwrap().clone().into(), ctx.addr, ctx.speaker)).await.unwrap();
+                        ctx.tts_processing = true;
+                        playbook_tx.send(
+                            voicegen_agent::into(ctx.wait_list.front().unwrap().clone().into(), ctx.addr, ctx.speaker)).await.unwrap();
 
-                        println!("<clk>start processing {:?}", ctx.processing.as_ref().unwrap().tweet_id);
+                        println!("<clk>start tts_processing {:?}", ctx.wait_list.front().as_ref().unwrap().tweet_id);
                     } 
 
                     // Process TTS Result
@@ -147,7 +150,7 @@ pub fn start(app_handle: tauri::AppHandle,
                                 continue;
                             };
 
-                            ctx.processing = None;
+                            ctx.tts_processing = false;
                             ctx.ready_list.push_back(ctx.wait_list.pop_front().unwrap());
                             ctx.speech_cache.push_back(speech);
                         },
@@ -212,7 +215,7 @@ pub fn start(app_handle: tauri::AppHandle,
                             // Cancel current playing speech only;
                             if twid == "" { continue; }
 
-                            if ctx.processing.is_some() {
+                            if ctx.tts_processing {
                                 ctx.cancelling = true;
                             }
 
@@ -225,7 +228,7 @@ pub fn start(app_handle: tauri::AppHandle,
                                 ctx.played_list.append(&mut ctx.wait_list);
                                 ctx.wait_list = tail;
 
-                                ctx.processing = None;
+                                ctx.tts_processing = false;
                                 ctx.speech_cache.clear();
                             }
 
@@ -237,7 +240,7 @@ pub fn start(app_handle: tauri::AppHandle,
 
                                 ctx.ready_list = tail;
 
-                                ctx.processing = None;
+                                ctx.tts_processing = false;
                                 let tail = ctx.speech_cache.split_off(p.unwrap());
                                 ctx.speech_cache = tail;
                             }
@@ -255,9 +258,8 @@ pub fn start(app_handle: tauri::AppHandle,
                     println!("{:?}", speaker);
                     ctx.speaker = speaker.speaker;
 
-                    if ctx.processing.is_some() {
-                        ctx.wait_list.push_front(ctx.processing.unwrap());
-                        ctx.processing = None;
+                    if ctx.tts_processing {
+                        ctx.tts_processing = false;
                         ctx.cancelling = true;
                     }
                     if ctx.ready_list.len() > 0 {
