@@ -36,6 +36,7 @@ impl From<scheduler::Record> for ViewElements {
 pub fn start(app_handle: tauri::AppHandle, mut display_rx: tokio::sync::mpsc::Receiver<DisplayContrl>)
 {
     tokio::spawn(async move {
+        let lock: bool = false;
         loop {
             match display_rx.recv().await {
                 Some(msg) => {

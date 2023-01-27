@@ -52,6 +52,9 @@ function App() {
   const [focusTwid, setFocusTwid] = React.useState<string>(()=>{
     return ""
   });
+  React.useEffect(() => {
+    scrollToFocus()
+  }, [focusTwid]);
 
   const [tweetList, setTweetList] = React.useState<Array<TweetProps>>(()=>{
     return []
@@ -69,9 +72,37 @@ function App() {
     invoke('set_paused', {paused: !paused});
   }
 
+  const [inroot, setInroot] = React.useState(true);
+  const onRootClick = () => {
+    setInroot(true);
+    setPaused(false);
+    invoke('set_paused', {paused: false});
+  }
+  React.useEffect(() => {
+    scrollToFocus()
+  }, [inroot]);
+
+  const onSettingsClick = () => {
+    setPaused(true);
+    setInroot(false);
+    invoke('set_paused', {paused: true});
+  }
+
+  const onLicensesClick = () => {
+    setPaused(true);
+    setInroot(false);
+    invoke('set_paused', {paused: true});
+  }
+
+  const scrollToFocus = () => {
+    const targetEl = document.getElementById(focusTwid)
+    if (targetEl && window.location.pathname === "/") {
+        targetEl?.scrollIntoView({ behavior: 'smooth' })
+        console.log(focusTwid);
+    }
+  }
   const onFocusClick = () => {
-      const targetEl = document.getElementById(focusTwid)
-      targetEl?.scrollIntoView({ behavior: 'smooth' })
+    scrollToFocus()
   }
 
   const [loggedin, setLoggedin] = React.useState(true);
@@ -117,9 +148,6 @@ function App() {
         const parsedInitSpeaker = json === null ? null : JSON.parse(json);
         const initSpeaker = parsedInitSpeaker === null ? "0" : parsedInitSpeaker;
 
-        //const index = speakerList.findIndex((e) => e.speaker === initSpeaker);
-        //console.log(speakerList[index]]);
-        //invoke('set_speaker', {volume: initSpeaker as string});
         return initSpeaker;
     });
     const [speakerList, setSpeakerList] = React.useState<Array<SpeakerInfo>>(()=>{
@@ -237,8 +265,8 @@ function App() {
 
     listen<string>('tauri://frontend/display/scroll', (event) => {
         const twid: string = event.payload;
-        const targetEl = document.getElementById(twid)
-        targetEl?.scrollIntoView({ behavior: 'smooth' })
+        //const targetEl = document.getElementById(twid)
+        //targetEl?.scrollIntoView({ behavior: 'smooth' })
         setFocusTwid(twid);
         console.log(twid);
     });
@@ -257,17 +285,6 @@ function App() {
   }, []) ;
 
 
-  React.useEffect(() => {
-        const targetEl = document.getElementById(focusTwid)
-
-        if (targetEl) {
-            targetEl?.scrollIntoView({ behavior: 'smooth' })
-            console.log(focusTwid);
-        }
-
-  }, [focusTwid]);
-
-
     const drawerElements = () => (
     <Box
       sx={{ width: `var(--drawer-width)` }}
@@ -282,7 +299,7 @@ function App() {
         key='Timeline'
         disablePadding
         >
-        <ListItemButton>
+        <ListItemButton onClick={onRootClick}>
           <ListItemIcon>
             <AbcIcon />
           </ListItemIcon>
@@ -293,12 +310,12 @@ function App() {
 
       <Divider />
 
-      <Link style={{ textDecoration: 'none' }} to="/settings">
+      <Link style={{ textDecoration: 'none' }} to="settings">
       <ListItem
         key='Settings'
         disablePadding
         >
-        <ListItemButton>
+        <ListItemButton onClick={onSettingsClick}>
           <ListItemIcon>
             <SettingsIcon />
           </ListItemIcon>
@@ -309,12 +326,12 @@ function App() {
 
       <Divider />
 
-      <Link style={{ textDecoration: 'none' }} to="/licenses">
+      <Link style={{ textDecoration: 'none' }} to="licenses">
       <ListItem
         key='Information'
         disablePadding
         >
-        <ListItemButton>
+        <ListItemButton onClick={onLicensesClick}>
           <ListItemIcon>
             <InfoIcon />
           </ListItemIcon>
@@ -342,6 +359,7 @@ function App() {
                 <IconButton
                     color="inherit"
                     onClick={onPauseResumeClick}
+                    disabled={!inroot}
                 >
                     {paused ? (
                         <PlayArrowRounded />
@@ -352,12 +370,14 @@ function App() {
 
                 <IconButton
                     color="inherit"
+                    disabled={!inroot}
                     onClick={onSkipClick}>
                     <FastForwardRounded />
                 </IconButton>
 
                 <IconButton
                     color="inherit"
+                    disabled={!inroot}
                     onClick={onFocusClick}>
                     <AdjustIcon />
                 </IconButton>
@@ -450,8 +470,8 @@ function App() {
             <Box className="Body" >
                 <Routes>
                     <Route path={`/`} element={<Body />} />
-                    <Route path={`/settings/`} element={<AppSettings />} />
-                    <Route path={`/licenses/`} element={<Licenses />} />
+                    <Route path={`settings`} element={<AppSettings />} />
+                    <Route path={`licenses`} element={<Licenses />} />
                 </Routes>
             </Box>
         </Box>
