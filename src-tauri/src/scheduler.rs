@@ -35,7 +35,7 @@ pub fn into(tweet: &twitter_data::Tweet, users: &Vec<twitter_data::User>) -> Rec
     }
 }
 
-pub fn remove<T>(list: &mut LinkedList::<T>, index: usize) -> T {
+fn remove<T>(list: &mut LinkedList::<T>, index: usize) -> T {
     if index == 0 {
         let v = list.pop_front().unwrap();
 
@@ -55,6 +55,7 @@ struct Context {
     pub speaker: u64,
     pub focus_set: bool,
     pub cancelling: bool,
+    pub paused: bool,
     pub tts_processing: bool,
     pub wait_list: LinkedList::<Record>,
     pub ready_list: LinkedList::<Record>,
@@ -69,6 +70,7 @@ impl Context {
             speaker: 0,
             focus_set: false,
             cancelling: false,
+            paused: false,
             tts_processing: false,
             wait_list: LinkedList::<Record>::new(),
             ready_list: LinkedList::<Record>::new(),
@@ -103,30 +105,47 @@ pub fn start(app_handle: tauri::AppHandle,
 
     tokio::spawn(async move {
         loop {
-            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
+            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
                 ctx.wait_list.len(),
                 ctx.ready_list.len(),
                 ctx.played_list.len(),
                 ctx.speech_cache.len(),
                 ctx.cancelling,
+                ctx.paused,
                 ctx.tts_processing);
 
             print!("scheduler: Select> ");
             tokio::select!{
-                Some(msg) = tweet_rx.recv() => {
-                    println!("New tweet incoming {:?}", msg.tweet_id);
-
-                    ctx.wait_list.push_back(msg.clone());
-
-                    display_tx.send(display_bridge::DisplayContrl::Add(msg.clone().into())).await.unwrap();
-
-                    if !ctx.focus_set {
-                        display_tx.send(display_bridge::DisplayContrl::Scroll(msg.tweet_id)).await.unwrap();
-                        ctx.focus_set = true;
-                    }
-                }
-
                 Some(_) = clk_rx.recv() => {
+                    // Obtain Tweet
+
+                    if !ctx.paused {
+                        match tweet_rx.try_recv() {
+                            Ok(msg) => {
+                                println!("New tweet incoming {:?}", msg.tweet_id);
+
+                                ctx.wait_list.push_back(msg.clone());
+                                display_tx.send(display_bridge::DisplayContrl::Add(msg.clone().into())).await.unwrap();
+
+                                if !ctx.focus_set {
+                                    display_tx.send(display_bridge::DisplayContrl::Scroll(msg.tweet_id)).await.unwrap();
+                                    ctx.focus_set = true;
+                                }
+                            }
+
+                            Err(e) => {
+                                match e {
+                                    tokio::sync::mpsc::error::TryRecvError::Empty => {},
+
+                                    e => {
+                                        println!("scheduler: twitter agent closes pci {:?}", e);
+                                        return ();
+                                    }
+                                }
+                            },
+                        }
+                    }
+
                     // TTS Start
                     if ctx.wait_list.len() > 0
                         && !ctx.tts_processing
@@ -251,11 +270,16 @@ pub fn start(app_handle: tauri::AppHandle,
                             }
                             display_tx.send(display_bridge::DisplayContrl::Scroll(twid)).await.unwrap();
                         },
+
+                        user_input::UserInput::Paused(msg) => {
+                            ctx.paused = msg;
+                        }
                     }
                 }
 
                 Some(speaker) = speaker_rx.recv() => {
                     println!("{:?}", speaker);
+                    ctx.addr = speaker.addr;
                     ctx.speaker = speaker.speaker;
 
                     if ctx.tts_processing {

@@ -143,13 +143,45 @@ function App() {
         speaker: string,
     }
 
+    const [AuthErr, setAuthErr] = React.useState<string>(()=>{ return ""; });
+
+    listen<string>('tauri://frontend/authorization-failed', (event)=> {
+        const errmsg: string = event.payload;
+        setAuthErr(errmsg);
+
+        console.log(errmsg);
+    });
+
+    const [TTSErr, setTTSErr] = React.useState<string>(()=>{ return ""; });
+
+    listen<string>('tauri://frontend/no-voicegen-found', (event)=> {
+        const errmsg: string = event.payload;
+        setTTSErr(errmsg);
+
+        console.log(errmsg);
+    });
+
+    const [otherErr, setOtherErr] = React.useState<string>(()=>{ return ""; });
+
+    listen<string>('tauri://frontend/other-error', (event)=> {
+        const errmsg: string = event.payload;
+        setOtherErr(errmsg);
+
+        console.log(errmsg);
+    });
+
+    const to_unique_string = (speaker: SpeakerInfo) => {
+        return speaker.addr + "/" + speaker.speaker;
+    };
+
     const [speaker, setSpeaker] = React.useState(() => {
         const json = localStorage.getItem("speaker");
         const parsedInitSpeaker = json === null ? null : JSON.parse(json);
-        const initSpeaker = parsedInitSpeaker === null ? "0" : parsedInitSpeaker;
+        const initSpeaker = parsedInitSpeaker === null ? "127.0.0.1:50021/0" : parsedInitSpeaker;
 
         return initSpeaker;
     });
+
     const [speakerList, setSpeakerList] = React.useState<Array<SpeakerInfo>>(()=>{
       return []
     });
@@ -159,7 +191,7 @@ function App() {
         console.log(value);
 
         setSpeaker(value);
-        const index = speakerList.findIndex((e) => e.speaker === value);
+        const index = speakerList.findIndex((e) => to_unique_string(e) === value);
         console.log(speakerList[index]);
         invoke("set_speaker", {speaker: speakerList[index]});
         localStorage.setItem("speaker", JSON.stringify(value));
@@ -185,6 +217,7 @@ function App() {
         const index = speakerList.findIndex((e) => e.speaker === speaker);
         invoke("set_speaker", {speaker: speakerList[index]});
 
+        setTTSErr("");
         setSpeakerList([...speakerList]);
     });
 
@@ -205,7 +238,7 @@ function App() {
                     {
                         speakerList.length > 0 &&
                         speakerList.map((speaker, index) => {
-                            return (<MenuItem value={speaker.speaker}>{speaker.engine}:{speaker.name}[{speaker.style}]</MenuItem>)
+                            return (<MenuItem value={to_unique_string(speaker)}>{speaker.engine}:{speaker.name}[{speaker.style}]</MenuItem>)
                         })
                     }
                   </Select>
@@ -254,6 +287,7 @@ function App() {
             }
         )
         setTweetList([...tweetList]);
+        setAuthErr("");
     });
 
     listen<string>('tauri://frontend/display/delete', (event) => {
@@ -281,6 +315,7 @@ function App() {
         console.log('tauri://frontend/speakers-ready');
         emit("tauri://backend/speakers-ready");
     });
+
 
   }, []) ;
 
@@ -481,6 +516,15 @@ function App() {
                 <LeftFoot/>
             </Box>
             <Box className="RightFoot" >
+                {
+                    AuthErr !== "" ? <Alert severity="warning">{AuthErr}</Alert> :<></>
+                }
+                {
+                    otherErr !== "" ? <Alert severity="warning">{otherErr}</Alert> :<></>
+                }
+                {
+                    TTSErr !== "" ? <Alert severity="warning">{TTSErr}</Alert> :<></>
+                }
                 <Alert severity="info">バグ報告等 Twitter @tapoh22334</Alert>
             </Box>
         </Box>

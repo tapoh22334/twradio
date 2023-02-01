@@ -94,7 +94,7 @@ pub async fn request_user_timeline(token: &Oauth2Token, user_id: &str, start_tim
     Ok(timeline)
 }
 
-pub async fn request_tweet_new(token: &Oauth2Token, user_id: &str, start_time: Option<&str>) -> Result<twitter_data::TweetsResponse, RequestError> {
+pub async fn request_tweet_new(token: &Oauth2Token, user_id: &str, since_id: Option<&str>) -> Result<twitter_data::TweetsResponse, RequestError> {
     let client = reqwest::Client::new();
     let auth_val = format!("Bearer {}", token.access_token().secret());
 
@@ -103,8 +103,9 @@ pub async fn request_tweet_new(token: &Oauth2Token, user_id: &str, start_time: O
                     ("tweet.fields", "created_at"),
                     ("max_results", "25")]
                         .to_vec();
-    match start_time {
-        Some(s) => { query.push(("start_time", s)); },
+
+    match since_id {
+        Some(s) => { query.push(("since_id", s)); },
         None => {}
     };
 

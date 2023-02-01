@@ -4,7 +4,10 @@ use crate::scheduler;
 use crate::twitter_client;
 use crate::twitter_authorizator;
 
-const QUEUE_LENGTH : usize = 24;
+use tauri::Manager;
+
+//const QUEUE_LENGTH : usize = 24;
+const QUEUE_LENGTH : usize = 1;
 const REQUEST_PERIOD: u64 = 10000; // milliseconds
 
 
@@ -21,17 +24,16 @@ pub fn start(app_handle: tauri::AppHandle,
         let user_id = match twitter_client::request_user_id(&token).await {
             Ok(t) => t,
             Err(e) => {
-                // TBD: Recovery if the token is expired
-                panic!("TBD: not implemented error handling! {:?}", e);
+                "".to_string()
             },
         };
 
-        let mut start_time_str: String;
-        let mut start_time: Option<&str> = None;
+        let mut since_id_str: String;
+        let mut since_id: Option<&str> = None;
         let mut latest_tweet_id: String = "".to_string();
 
         loop {
-            let tweets = match twitter_client::request_tweet_new(&token, user_id.as_str(), start_time).await {
+            let tweets = match twitter_client::request_tweet_new(&token, user_id.as_str(), since_id).await {
             //let tweets = match twitter_client::request_user_timeline(&token, user_id.as_str(), start_time).await {
                 Ok(t) => t,
                 Err(e) => {
@@ -40,11 +42,22 @@ pub fn start(app_handle: tauri::AppHandle,
                             println!("{:?}", e);
                             authctl_tx.send(twitter_authorizator::AuthControl::Authorize).await.unwrap();
                             token = token_rx.recv().await.unwrap();
+
+                            app_handle
+                                .emit_all("tauri://frontend/authorization-failed", "ログアウトし再度Twitterにログインしてください")
+                                .unwrap();
+
+                            tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
                             continue;
                         },
 
                         twitter_client::RequestError::Unknown(msg) => {
-                            panic!("{:?}", msg);
+                            app_handle
+                                .emit_all("tauri://frontend/other-error", "ネットワークに異常があります")
+                                .unwrap();
+
+                            tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
+                            continue;
                         },
 
                     }
@@ -59,10 +72,6 @@ pub fn start(app_handle: tauri::AppHandle,
             } else {
                 println!("{:?}", tweets);
 
-                let latest_tweet = tweets.data.as_ref().unwrap().get(0).unwrap().clone();
-                start_time_str = latest_tweet.created_at.clone();
-                start_time = Some(start_time_str.as_str());
-
                 let users = tweets.includes.unwrap().users;
                 let mut rev_data = tweets.data.unwrap();
                 rev_data.reverse();
@@ -71,6 +80,7 @@ pub fn start(app_handle: tauri::AppHandle,
                         println!("twitter_agent: duplicated tweet");
                     } else {
                         latest_tweet_id = tweet.id.clone();
+                        since_id = Some(latest_tweet_id.as_str());
                         let record: scheduler::Record = scheduler::into(&tweet, &users);
                         tweet_tx.send(record).await.unwrap();
                     }

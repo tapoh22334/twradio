@@ -3,10 +3,6 @@ use reqwest::Url;
 
 use crate::voicegen_data;
 
-fn base_url() -> Url {
-    Url::parse("http://localhost:50031/").unwrap()
-}
-
 #[derive(Serialize)]
 struct Body {
    text: String,
@@ -40,7 +36,7 @@ pub async fn request_voice(addr: std::net::SocketAddr, speaker: u64, text: &Stri
                     })?;
 
     // Generate wav
-    let url = base_url().join("synthesis").unwrap();
+    let url: String = format!("http://{}/synthesis", addr);
     let data = client.post(url)
                     .query(&[("speaker", speaker.to_string().as_str())])
                     .body(audio_query)

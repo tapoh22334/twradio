@@ -29,14 +29,21 @@ async fn setup_app(state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc:
 }
 
 #[tauri::command]
-async fn set_paused(paused: bool, state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<audio_player::AudioControl>>>) -> Result<(), ()> {
-    let tx = state.lock().await;
-
-    if paused {
-        tx.send(audio_player::AudioControl::Pause).await.unwrap();
-    } else {
-        tx.send(audio_player::AudioControl::Resume).await.unwrap();
+async fn set_paused(paused: bool,
+                    state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<audio_player::AudioControl>>>,
+                    userin: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
+    {
+        let tx = state.lock().await;
+        let ctl = if paused { audio_player::AudioControl::Pause } else { audio_player::AudioControl::Resume };
+        tx.send(ctl).await.unwrap();
     }
+
+    {
+        let tx = userin.lock().await;
+        let ctl = user_input::UserInput::Paused( if paused {true} else {false} );
+        tx.send(ctl).await.unwrap();
+    }
+
     println!("tauri://backend/paused {:?}", paused);
 
     Ok(())
