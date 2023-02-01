@@ -38,7 +38,7 @@ pub struct Speech {
 
 pub fn start(app_handle: tauri::AppHandle,
              mut playbook_rx: tokio::sync::mpsc::Receiver<Playbook>,
-             speech_tx: tokio::sync::mpsc::Sender<Speech>
+             speech_tx: tokio::sync::mpsc::Sender<Option<Speech>>
              )
 {
     // Wait while speaker detect
@@ -64,32 +64,30 @@ pub fn start(app_handle: tauri::AppHandle,
                     // Modify username for speech
                     //
                     let hira_name = to_hiragana(msg.name.as_str());
-                    while speech_name == None { 
-                        let resp = voicegen_client::request_voice( msg.addr,
-                                                                   msg.speaker,
-                                                                   &hira_name).await;
+                    let resp = voicegen_client::request_voice( msg.addr,
+                                                               msg.speaker,
+                                                               &hira_name).await;
 
-                        speech_name = match resp {
-                            Ok(s) => {
-                                app_handle
-                                    .emit_all("tauri://frontend/tts-failed", "")
-                                    .unwrap();
-                                Some(s)
-                            },
-                            Err(e) => {
-                                match e {
-                                    Unknown => {
-                                        app_handle
-                                            .emit_all("tauri://frontend/tts-failed", "音声の取得に失敗しました")
-                                            .unwrap();
+                    speech_name = match resp {
+                        Ok(s) => {
+                            app_handle
+                                .emit_all("tauri://frontend/tts-failed", "")
+                                .unwrap();
+                            Some(s)
+                        },
+                        Err(e) => {
+                            match e {
+                                voicegen_client::RequestError::Unknown(emsg) => {
+                                    app_handle
+                                        .emit_all("tauri://frontend/tts-failed", "音声の取得に失敗しました")
+                                        .unwrap();
 
-                                        println!("voicegen_client: failed to process tts");
-                                        tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
-                                        None
-                                    }
+                                    println!("voicegen_client: failed to process tts {:?}", emsg);
+                                    speech_tx.send(None).await.unwrap();
+                                    continue;
                                 }
                             }
-                        };
+                        }
                     };
 
                     // Modify tweet message for speech
@@ -97,38 +95,36 @@ pub fn start(app_handle: tauri::AppHandle,
                     let hira_text = voicegen_filter::replace_url(hira_text.as_str());
                     let hira_text = to_hiragana(hira_text.as_str());
 
-                    while speech_text == None {
-                        let resp = voicegen_client::request_voice( msg.addr,
-                                                                   msg.speaker,
-                                                                   &hira_text).await;
-                        speech_text = match resp {
-                            Ok(s) => {
-                                app_handle
-                                    .emit_all("tauri://frontend/tts-failed", "")
-                                    .unwrap();
-                                Some(s)
-                            },
-                            Err(e) => {
-                                match e {
-                                    Unknown => {
-                                        app_handle
-                                            .emit_all("tauri://frontend/tts-failed", "音声の取得に失敗しました")
-                                            .unwrap();
+                    let resp = voicegen_client::request_voice( msg.addr,
+                                                               msg.speaker,
+                                                               &hira_text).await;
+                    speech_text = match resp {
+                        Ok(s) => {
+                            app_handle
+                                .emit_all("tauri://frontend/tts-failed", "")
+                                .unwrap();
+                            Some(s)
+                        },
+                        Err(e) => {
+                            match e {
+                                voicegen_client::RequestError::Unknown(emsg) => {
+                                    app_handle
+                                        .emit_all("tauri://frontend/tts-failed", "音声の取得に失敗しました")
+                                        .unwrap();
 
-                                        println!("voicegen_client: failed to process tts");
-                                        tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
-                                        None
-                                    }
+                                    println!("voicegen_client: failed to process tts {:?}", emsg);
+                                    speech_tx.send(None).await.unwrap();
+                                    continue;
                                 }
                             }
-                        };
-                    }
+                        }
+                    };
 
                     println!("{:?}", hira_text);
 
                     let speech = Speech {tweet_id: msg.tweet_id, text: speech_text.unwrap(), name: speech_name.clone().unwrap()};
 
-                    speech_tx.send(speech).await.unwrap();
+                    speech_tx.send(Some(speech)).await.unwrap();
                 },
 
                 None => { println!("voicegen_agent: exit"); return (); }

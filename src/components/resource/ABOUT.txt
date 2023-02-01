@@ -6,19 +6,42 @@
 <body>
     <main class="container">
         <div>
-            <h2>ついよみ v0.1.1 β</h2>
+            <h2>ついよみ v0.2.0</h2>
             <p>本ソフトウェアはツイッターのタイムラインを読み上げます。<br>
-            使用するためには<a href="https://coeiroink.com/download">COEIROINK v1.6.0</a>が別途必要です。<br>
-            他のバージョンでの動作は検証していません</p>
+            使用するためには音声合成ソフトが別途必要です。<br>
+        </div>
+
+        <div>
+            <h2>利用可能な音声合成ソフト</h3>
+            <ul>
+                <li> VOICEVOX v0.13.1 </li>
+                <li> COEIROINK v1.6.0 </li>
+                <li> LMROID v1.3 </li>
+                <li> SHAREVOX v0.1.7 </li>
+                <li> ITVOICE v1.0.1 </li>
+            </ul>
+
+            他のバージョンでの動作は検証していません
         </div>
 
         <div>
             <h2>使い方</h3>
             <ul>
-                <li>COEIROINKを起動</li>
+                <li>音声合成ソフトを起動</li>
                 <li>本ソフトウェアを起動するとブラウザが開く</li>
                 <li>ブラウザ上で本アプリによるTwitterの使用を許可する</li>
                 <li>読み上げが始まります</li>
+            </ul>
+        </div>
+
+        <div>
+            <h2>エラーについて</h3>
+            <ul>
+                <li>音声の取得に失敗しました</li>
+                    <div>
+                        前回選択したキャラクターのボイスを取得できません。
+                        「Settings」から他の「声」を選んでください。
+                    </div>
             </ul>
         </div>
 

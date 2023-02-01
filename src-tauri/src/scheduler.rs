@@ -84,7 +84,7 @@ pub fn start(app_handle: tauri::AppHandle,
              mut tweet_rx: tokio::sync::mpsc::Receiver<Record>,
              display_tx: tokio::sync::mpsc::Sender<display_bridge::DisplayContrl>,
              playbook_tx: tokio::sync::mpsc::Sender<voicegen_agent::Playbook>,
-             mut speech_rx: tokio::sync::mpsc::Receiver<voicegen_agent::Speech>,
+             mut speech_rx: tokio::sync::mpsc::Receiver<Option<voicegen_agent::Speech>>,
              audioctl_tx: tokio::sync::mpsc::Sender<audio_player::AudioControl>,
              mut audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>,
              mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>,
@@ -105,7 +105,9 @@ pub fn start(app_handle: tauri::AppHandle,
 
     tokio::spawn(async move {
         loop {
-            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
+            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
+                ctx.addr,
+                ctx.speaker,
                 ctx.wait_list.len(),
                 ctx.ready_list.len(),
                 ctx.played_list.len(),
@@ -161,17 +163,26 @@ pub fn start(app_handle: tauri::AppHandle,
                     // Process TTS Result
                     match speech_rx.try_recv() {
                         Ok(speech) => {
-                            println!("Text to speech is complete {:?}", speech.tweet_id);
                             if ctx.cancelling {
                                 // Ignore processing result.
                                 println!("tts result is ignored");
                                 ctx.cancelling = false;
                                 continue;
-                            };
+                            }
 
-                            ctx.tts_processing = false;
-                            ctx.ready_list.push_back(ctx.wait_list.pop_front().unwrap());
-                            ctx.speech_cache.push_back(speech);
+                            match speech {
+                                Some(speech) => {
+                                    println!("Text to speech is complete {:?}", speech.tweet_id);
+
+                                    ctx.tts_processing = false;
+                                    ctx.ready_list.push_back(ctx.wait_list.pop_front().unwrap());
+                                    ctx.speech_cache.push_back(speech);
+                                }
+                                None => {
+                                    println!("Text to speech is failed ");
+                                    ctx.tts_processing = false;
+                                }
+                            }
                         },
 
                         Err(e) => {

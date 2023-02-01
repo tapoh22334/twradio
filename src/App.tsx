@@ -223,7 +223,7 @@ function App() {
             )
         }
 
-        const index = speakerList.findIndex((e) => e.speaker === speaker);
+        const index = speakerList.findIndex((e) => to_unique_string(e) === speaker);
         invoke("set_speaker", {speaker: speakerList[index]});
 
         setSpeakerList([...speakerList]);

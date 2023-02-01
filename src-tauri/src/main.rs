@@ -98,7 +98,7 @@ async fn main() -> std::io::Result<()> {
         = tokio::sync::mpsc::channel::<voicegen_agent::Playbook>(1);
 
     let (speech_tx, speech_rx) 
-        = tokio::sync::mpsc::channel::<voicegen_agent::Speech>(QUEUE_LENGTH);
+        = tokio::sync::mpsc::channel::<Option<voicegen_agent::Speech>>(1);
 
     let (audioctl_tx, audioctl_rx) 
         = tokio::sync::mpsc::channel::<audio_player::AudioControl>(QUEUE_LENGTH);
