@@ -8,6 +8,8 @@ use std::collections::HashMap;
 
 use tauri::Manager;
 
+const REQUEST_PERIOD: u64 = 3000; // milliseconds
+                                   //
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Playbook {
     pub tweet_id: String,
@@ -56,47 +58,80 @@ pub fn start(app_handle: tauri::AppHandle,
         loop {
             match playbook_rx.recv().await {
                 Some(msg) => {
+                    let mut speech_name = None;
+                    let mut speech_text = None;
 
                     // Modify username for speech
+                    //
                     let hira_name = to_hiragana(msg.name.as_str());
-                    //let speech_name = match name_cache.get(&hira_name) {
-                    //    Some(hit) => hit,
-                    //    None => {
-                    //        let v = voicegen_client::request_voice(
-                    //            msg.addr,
-                    //            msg.speaker,
-                    //            &hira_name).await.unwrap();
+                    while speech_name == None { 
+                        let resp = voicegen_client::request_voice( msg.addr,
+                                                                   msg.speaker,
+                                                                   &hira_name).await;
 
-                    //        // To shorten TTS processing time, cache the user name speech
-                    //        // TBD: Warning: cache out method is not implemented.
-                    //        // It would consume more memory if the non follower is comes here.
-                    //        name_cache.insert(hira_name.clone(), v);
-                    //        name_cache.get(&hira_name).unwrap()
-                    //    },
-                    //};
-                    let speech_name = voicegen_client::request_voice(
-                                msg.addr,
-                                msg.speaker,
-                                &hira_name).await.unwrap();
+                        speech_name = match resp {
+                            Ok(s) => {
+                                app_handle
+                                    .emit_all("tauri://frontend/tts-failed", "")
+                                    .unwrap();
+                                Some(s)
+                            },
+                            Err(e) => {
+                                match e {
+                                    Unknown => {
+                                        app_handle
+                                            .emit_all("tauri://frontend/tts-failed", "音声の取得に失敗しました")
+                                            .unwrap();
+
+                                        println!("voicegen_client: failed to process tts");
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
+                                        None
+                                    }
+                                }
+                            }
+                        };
+                    };
 
                     // Modify tweet message for speech
                     let hira_text = voicegen_filter::replace_retweet(msg.text.as_str());
                     let hira_text = voicegen_filter::replace_url(hira_text.as_str());
                     let hira_text = to_hiragana(hira_text.as_str());
-                    let speech_text = voicegen_client::request_voice(
-                        msg.addr,
-                        msg.speaker,
-                        &hira_text).await.unwrap();
 
-                    println!("{:?}", msg.text);
+                    while speech_text == None {
+                        let resp = voicegen_client::request_voice( msg.addr,
+                                                                   msg.speaker,
+                                                                   &hira_text).await;
+                        speech_text = match resp {
+                            Ok(s) => {
+                                app_handle
+                                    .emit_all("tauri://frontend/tts-failed", "")
+                                    .unwrap();
+                                Some(s)
+                            },
+                            Err(e) => {
+                                match e {
+                                    Unknown => {
+                                        app_handle
+                                            .emit_all("tauri://frontend/tts-failed", "音声の取得に失敗しました")
+                                            .unwrap();
+
+                                        println!("voicegen_client: failed to process tts");
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
+                                        None
+                                    }
+                                }
+                            }
+                        };
+                    }
+
                     println!("{:?}", hira_text);
 
-                    let speech = Speech {tweet_id: msg.tweet_id, text: speech_text, name: speech_name.clone()};
+                    let speech = Speech {tweet_id: msg.tweet_id, text: speech_text.unwrap(), name: speech_name.clone().unwrap()};
 
                     speech_tx.send(speech).await.unwrap();
                 },
 
-                None => { return (); }
+                None => { println!("voicegen_agent: exit"); return (); }
             }
         }
     });

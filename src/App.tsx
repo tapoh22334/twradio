@@ -152,9 +152,18 @@ function App() {
         console.log(errmsg);
     });
 
-    const [TTSErr, setTTSErr] = React.useState<string>(()=>{ return ""; });
+    const [NoTTSErr, setNoTTSErr] = React.useState<string>(()=>{ return ""; });
 
     listen<string>('tauri://frontend/no-voicegen-found', (event)=> {
+        const errmsg: string = event.payload;
+        setNoTTSErr(errmsg);
+
+        console.log(errmsg);
+    });
+
+    const [TTSErr, setTTSErr] = React.useState<string>(()=>{ return ""; });
+
+    listen<string>('tauri://frontend/tts-failed', (event)=> {
         const errmsg: string = event.payload;
         setTTSErr(errmsg);
 
@@ -217,7 +226,6 @@ function App() {
         const index = speakerList.findIndex((e) => e.speaker === speaker);
         invoke("set_speaker", {speaker: speakerList[index]});
 
-        setTTSErr("");
         setSpeakerList([...speakerList]);
     });
 
@@ -521,6 +529,9 @@ function App() {
                 }
                 {
                     otherErr !== "" ? <Alert severity="warning">{otherErr}</Alert> :<></>
+                }
+                {
+                    NoTTSErr !== "" ? <Alert severity="warning">{NoTTSErr}</Alert> :<></>
                 }
                 {
                     TTSErr !== "" ? <Alert severity="warning">{TTSErr}</Alert> :<></>

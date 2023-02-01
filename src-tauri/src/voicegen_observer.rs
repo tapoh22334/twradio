@@ -40,7 +40,10 @@ pub fn start(app_handle: tauri::AppHandle)
 {
     let addrs = vec![
         ("VOICEVOX", std::net::SocketAddr::from(([127, 0, 0, 1], 50021))),
-        ("COEIROINK", std::net::SocketAddr::from(([127, 0, 0, 1], 50031)))
+        ("COEIROINK", std::net::SocketAddr::from(([127, 0, 0, 1], 50031))),
+        ("LMROID", std::net::SocketAddr::from(([127, 0, 0, 1], 50073))),
+        ("SHAREVOX", std::net::SocketAddr::from(([127, 0, 0, 1], 50025))),
+        ("ITVOICE", std::net::SocketAddr::from(([127, 0, 0, 1], 49540)))
     ];
 
     // Wait while speaker detect
@@ -93,6 +96,10 @@ pub fn start(app_handle: tauri::AppHandle)
             if vec.len() == 0 {
                 app_handle
                     .emit_all("tauri://frontend/no-voicegen-found", "TTSエンジンを起動してください")
+                    .unwrap();
+            } else {
+                app_handle
+                    .emit_all("tauri://frontend/no-voicegen-found", "")
                     .unwrap();
             }
 
