@@ -12,12 +12,14 @@
 本アプリケーションはTwitterの仕様変更や規制により突然利用できなくなる可能性があります。
 
 ## 音声合成ソフト
+
 以下の音声合成ソフトに対応しています
-VOICEVOX v0.13.1
-COEIROINK v1.6.0
-LMROID v1.3
-SHAREVOX v0.1.7
-ITVOICE v1.0.1
+
+ - VOICEVOX v0.13.1
+ - COEIROINK v1.6.0
+ - LMROID v1.3
+ - SHAREVOX v0.1.7
+ - ITVOICE v1.0.1
 
 他のバージョンでの動作は検証していません
 
@@ -29,6 +31,7 @@ ITVOICE v1.0.1
 ## 動作環境
 
  - Windows 10
+
 Windowsでテストしていますが、
 mac, linuxでもビルドできると思います。
 
