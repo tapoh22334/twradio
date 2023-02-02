@@ -467,6 +467,15 @@ function App() {
                         )
                     })
             }
+
+            {/* Empty box */}
+            <ListItem>
+               <Box
+                 sx={{
+                   height: "calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height))",
+                 }}
+               />
+            </ListItem>
         </List>
      );
     }
