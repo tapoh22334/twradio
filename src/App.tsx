@@ -6,8 +6,10 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api'
 import { listen, emit } from '@tauri-apps/api/event'
 import { exit } from '@tauri-apps/api/process';
-import { TweetLi, TweetProps, TweetLiProps } from './components/TweetCard'
+
 import Licenses from './components/LicenseView'
+import { TweetProps} from './components/TweetCard'
+import { TweetView } from './components/TweetView'
 
 import List from '@mui/material/List';
 import Divider from '@mui/material/Divider';
@@ -24,7 +26,6 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import InfoIcon from '@mui/icons-material/Info';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -35,8 +36,10 @@ import LoginIcon from '@mui/icons-material/Login';
 import AbcIcon from '@mui/icons-material/Abc';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
+import CenterFocusStrongIcon from '@mui/icons-material/CenterFocusStrong';
+import CenterFocusWeakIcon from '@mui/icons-material/CenterFocusWeak';
+
 import Select, { SelectChangeEvent } from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
 
 
 type ViewElements = {
@@ -49,21 +52,45 @@ type ViewElements = {
 }
 
 function App() {
+  const scrollToFocus = (twid: string) => {
+    const targetEl = document.getElementById(twid)
+    if (targetEl && window.location.pathname === "/") {
+        targetEl?.scrollIntoView({ behavior: 'smooth' })
+        console.log(twid);
+    }
+  }
+
   const [focusTwid, setFocusTwid] = React.useState<string>(()=>{
     return ""
   });
   React.useEffect(() => {
-    scrollToFocus()
+    if (focus) {
+        scrollToFocus(focusTwid);
+    }
   }, [focusTwid]);
 
   const [tweetList, setTweetList] = React.useState<Array<TweetProps>>(()=>{
     return []
   });
 
-  const onVolumeChange = (event: Event, newValue: number | number[]) => {
+  const [volume, setVolume] = React.useState(() => {
+    const json = localStorage.getItem("volume");
+    const parsedInitVolume = json === null ? null : JSON.parse(json);
+    const initVolume = parsedInitVolume === null ? 80 : parsedInitVolume;
+
+    invoke('set_volume', {volume: initVolume as number});
+    return initVolume;
+  });
+
+  React.useEffect(() => {
+    console.log(volume);
+    invoke('set_volume', {volume: volume as number});
+    localStorage.setItem("volume", JSON.stringify(volume as number));
+  }, [volume]);
+
+  const onVolumeChange = (_: Event, newValue: number | number[]) => {
+    console.log(newValue);
     setVolume(newValue as number);
-    invoke('set_volume', {volume: newValue as number});
-    localStorage.setItem("volume", JSON.stringify(newValue as number));
   };
 
   const [paused, setPaused] = React.useState(false);
@@ -72,37 +99,37 @@ function App() {
     invoke('set_paused', {paused: !paused});
   }
 
-  const [inroot, setInroot] = React.useState(true);
-  const onRootClick = () => {
-    setInroot(true);
+  const [inTweets, setInTweets] = React.useState(true);
+  const onTweetsClick = () => {
+    setInTweets(true);
     setPaused(false);
     invoke('set_paused', {paused: false});
   }
   React.useEffect(() => {
-    scrollToFocus()
-  }, [inroot]);
+    if (inTweets) {
+      scrollToFocus(focusTwid);
+      setFocus(true);
+    }
+  }, [inTweets]);
 
   const onSettingsClick = () => {
     setPaused(true);
-    setInroot(false);
+    setInTweets(false);
     invoke('set_paused', {paused: true});
   }
 
   const onLicensesClick = () => {
     setPaused(true);
-    setInroot(false);
+    setInTweets(false);
     invoke('set_paused', {paused: true});
   }
 
-  const scrollToFocus = () => {
-    const targetEl = document.getElementById(focusTwid)
-    if (targetEl && window.location.pathname === "/") {
-        targetEl?.scrollIntoView({ behavior: 'smooth' })
-        console.log(focusTwid);
-    }
-  }
+  const [focus, setFocus] = React.useState(true);
   const onFocusClick = () => {
-    scrollToFocus()
+    if (!focus) {
+        scrollToFocus(focusTwid);
+    }
+    setFocus(!focus);
   }
 
   const [loggedin, setLoggedin] = React.useState(true);
@@ -124,15 +151,6 @@ function App() {
 
     invoke('jump', {twid: id});
   }
-
-  const [volume, setVolume] = React.useState(() => {
-    const json = localStorage.getItem("volume");
-    const parsedInitVolume = json === null ? null : JSON.parse(json);
-    const initVolume = parsedInitVolume === null ? 80 : parsedInitVolume;
-
-    invoke('set_volume', {volume: initVolume as number});
-    return initVolume;
-  });
 
   // Used in setting context
     type SpeakerInfo = {
@@ -206,6 +224,24 @@ function App() {
         localStorage.setItem("speaker", JSON.stringify(value));
     };
 
+    const [speachRate, setSpeachRate] = React.useState(() => {
+        const json = localStorage.getItem("speachRate");
+        const parsedInitSpeachRate = json === null ? null : JSON.parse(json);
+        const initSpeachRate = parsedInitSpeachRate === null ? 1.0 : parsedInitSpeachRate;
+
+        return initSpeachRate;
+    });
+
+    const onSpeachRateChange = (event: Event, value: number | number[]) => {
+        console.log(value);
+        setSpeachRate(value as number)
+    }
+
+    React.useEffect(() => {
+        invoke("set_speach_rate", {speach_rate: speachRate as number});
+        localStorage.setItem("speachRate", JSON.stringify(speachRate as number));
+    }, [speachRate]);
+
     listen<Array<SpeakerInfo>>('tauri://frontend/speakers-register', (event)=> {
         const speakers: Array<SpeakerInfo> = event.payload;
         console.log(speakers);
@@ -232,25 +268,39 @@ function App() {
 
     const AppSettings = () => {
         return (
-            <Box margin={2}>
-                <Typography gutterBottom>
-                  声
-                </Typography>
-                <FormControl size="small" >
-                  <Select
-                    labelId="voicelabel"
-                    id="voice-select"
-                    value={speaker}
-                    onChange={onSpeakerChange}
-                  >
-                    {
-                        speakerList.length > 0 &&
-                        speakerList.map((speaker, index) => {
-                            return (<MenuItem value={to_unique_string(speaker)}>{speaker.engine}:{speaker.name}[{speaker.style}]</MenuItem>)
-                        })
-                    }
-                  </Select>
-                </FormControl>
+            <Box>
+                <Box margin={2}>
+                    <Typography gutterBottom>
+                      声
+                    </Typography>
+                    <FormControl size="small" >
+                      <Select
+                        value={speaker}
+                        onChange={onSpeakerChange}
+                      >
+                        {
+                            speakerList.length > 0 &&
+                            speakerList.map((speaker, index) => {
+                                return (<MenuItem value={to_unique_string(speaker)}>{speaker.engine}:{speaker.name}[{speaker.style}]</MenuItem>)
+                            })
+                        }
+                      </Select>
+                    </FormControl>
+                </Box>
+
+                <Box margin={2}>
+                    <Typography gutterBottom>
+                      話速
+                    </Typography>
+                    <Slider
+                      step={0.01}
+                      min={0.5}
+                      max={2.00}
+                      valueLabelDisplay="auto"
+                      value={speachRate}
+                      onChange={onSpeachRateChange}
+                    />
+                </Box>
             </Box>
         );
 
@@ -307,8 +357,6 @@ function App() {
 
     listen<string>('tauri://frontend/display/scroll', (event) => {
         const twid: string = event.payload;
-        //const targetEl = document.getElementById(twid)
-        //targetEl?.scrollIntoView({ behavior: 'smooth' })
         setFocusTwid(twid);
         console.log(twid);
     });
@@ -319,11 +367,10 @@ function App() {
     // 'emit, listen' works correct from here !!
     emit('tauri://backend/ipc-init');
 
-    listen('tauri://frontend/speakers-ready', (event)=> {
+    listen('tauri://frontend/speakers-ready', ()=> {
         console.log('tauri://frontend/speakers-ready');
         emit("tauri://backend/speakers-ready");
     });
-
 
   }, []) ;
 
@@ -342,7 +389,7 @@ function App() {
         key='Timeline'
         disablePadding
         >
-        <ListItemButton onClick={onRootClick}>
+        <ListItemButton onClick={onTweetsClick}>
           <ListItemIcon>
             <AbcIcon />
           </ListItemIcon>
@@ -402,33 +449,30 @@ function App() {
                 <IconButton
                     color="inherit"
                     onClick={onPauseResumeClick}
-                    disabled={!inroot}
+                    disabled={!inTweets}
                 >
-                    {paused ? (
-                        <PlayArrowRounded />
-                        ) : (
-                        <PauseRounded />
-                    )}
+                    {paused ? <PlayArrowRounded /> : <PauseRounded />}
                 </IconButton>
 
                 <IconButton
                     color="inherit"
-                    disabled={!inroot}
+                    disabled={!inTweets}
                     onClick={onSkipClick}>
                     <FastForwardRounded />
                 </IconButton>
 
                 <IconButton
                     color="inherit"
-                    disabled={!inroot}
+                    disabled={!inTweets}
                     onClick={onFocusClick}>
-                    <AdjustIcon />
+                    { focus? <CenterFocusStrongIcon/> : <CenterFocusWeakIcon/> }
                 </IconButton>
 
                 <VolumeUp 
                   sx={{ mr: 1 }}
                 />
                 <Slider value={volume}
+                    disabled={!inTweets}
                     onChange={onVolumeChange}
                     min={0}
                     max={100}
@@ -436,47 +480,6 @@ function App() {
 
             </Toolbar>
         </AppBar>
-     );
-    }
-
-    const Body = () => {
-    return (
-        <List
-          sx={{
-            //maxWidth: 360,
-            bgcolor: 'background.paper',
-          }}
-        >
-            {
-                tweetList.length > 0 &&
-                    tweetList.map((row) => {
-                        return (
-                         <React.Fragment>
-                            <TweetLi
-                                tweet_id={row.tweet_id}
-                                username={row.username}
-                                user_id={row.user_id}
-                                time={row.time}
-                                tweet={row.tweet}
-                                profile_image_url={row.profile_image_url}
-                                //focus={row.tweet_id === focusTwid ? true : false}
-                                focus={false}
-                                />
-                            <Divider component="li" />
-                         </React.Fragment>
-                        )
-                    })
-            }
-
-            {/* Empty box */}
-            <ListItem>
-               <Box
-                 sx={{
-                   height: "calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height))",
-                 }}
-               />
-            </ListItem>
-        </List>
      );
     }
 
@@ -521,7 +524,7 @@ function App() {
 
             <Box className="Body" >
                 <Routes>
-                    <Route path={`/`} element={<Body />} />
+                    <Route path={`/`} element={<TweetView tweets={tweetList}/>} />
                     <Route path={`settings`} element={<AppSettings />} />
                     <Route path={`licenses`} element={<Licenses />} />
                 </Routes>
