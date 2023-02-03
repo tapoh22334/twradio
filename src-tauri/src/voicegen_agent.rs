@@ -17,15 +17,17 @@ pub struct Playbook {
     pub name: String,
     pub addr: std::net::SocketAddr,
     pub speaker: u64,
+    pub speech_rate: f64,
 }
 
-pub fn into(record: scheduler::Record, addr: std::net::SocketAddr, speaker: u64) -> Playbook {
+pub fn into(record: scheduler::Record, addr: std::net::SocketAddr, speaker: u64, speech_rate: f64) -> Playbook {
     Playbook {
         tweet_id: record.tweet_id,
         text: record.text,
         name: record.name,
         addr,
-        speaker
+        speaker,
+        speech_rate,
     }
 }
 
@@ -66,6 +68,7 @@ pub fn start(app_handle: tauri::AppHandle,
                     let hira_name = to_hiragana(msg.name.as_str());
                     let resp = voicegen_client::request_voice( msg.addr,
                                                                msg.speaker,
+                                                               msg.speech_rate,
                                                                &hira_name).await;
 
                     speech_name = match resp {
@@ -97,6 +100,7 @@ pub fn start(app_handle: tauri::AppHandle,
 
                     let resp = voicegen_client::request_voice( msg.addr,
                                                                msg.speaker,
+                                                               msg.speech_rate,
                                                                &hira_text).await;
                     speech_text = match resp {
                         Ok(s) => {

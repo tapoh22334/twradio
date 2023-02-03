@@ -91,7 +91,10 @@ pub fn start(app_handle: tauri::AppHandle,
                         }
                     }
                 },
-                None => { return (); }
+                None => {
+                    println!("audio_coordinator: audioctl_tx closed");
+                    return ();
+                }
             }
         }
 

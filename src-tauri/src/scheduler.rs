@@ -53,6 +53,7 @@ fn remove<T>(list: &mut LinkedList::<T>, index: usize) -> T {
 struct Context {
     pub addr: std::net::SocketAddr,
     pub speaker: u64,
+    pub speech_rate: f64,
     pub focus_set: bool,
     pub cancelling: bool,
     pub paused: bool,
@@ -68,6 +69,7 @@ impl Context {
         Context {
             addr: std::net::SocketAddr::from(([127, 0, 0, 1], 50031)),
             speaker: 0,
+            speech_rate: 1.0f64,
             focus_set: false,
             cancelling: false,
             paused: false,
@@ -80,6 +82,18 @@ impl Context {
     }
 }
 
+fn remove_cache(ctx: &mut Context) {
+    if ctx.tts_processing {
+        ctx.tts_processing = false;
+        ctx.cancelling = true;
+    }
+    if ctx.ready_list.len() > 0 {
+        ctx.ready_list.append(&mut ctx.wait_list);
+        ctx.wait_list = ctx.ready_list.split_off(0);
+        ctx.speech_cache.split_off(0);
+    }
+}
+
 pub fn start(app_handle: tauri::AppHandle,
              mut tweet_rx: tokio::sync::mpsc::Receiver<Record>,
              display_tx: tokio::sync::mpsc::Sender<display_bridge::DisplayContrl>,
@@ -88,7 +102,6 @@ pub fn start(app_handle: tauri::AppHandle,
              audioctl_tx: tokio::sync::mpsc::Sender<audio_player::AudioControl>,
              mut audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>,
              mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>,
-             mut speaker_rx: tokio::sync::mpsc::Receiver<voicegen_observer::Speaker>,
              )
 {
     // Context
@@ -105,9 +118,10 @@ pub fn start(app_handle: tauri::AppHandle,
 
     tokio::spawn(async move {
         loop {
-            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
+            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
                 ctx.addr,
                 ctx.speaker,
+                ctx.speech_rate,
                 ctx.wait_list.len(),
                 ctx.ready_list.len(),
                 ctx.played_list.len(),
@@ -155,7 +169,7 @@ pub fn start(app_handle: tauri::AppHandle,
 
                         ctx.tts_processing = true;
                         playbook_tx.send(
-                            voicegen_agent::into(ctx.wait_list.front().unwrap().clone().into(), ctx.addr, ctx.speaker)).await.unwrap();
+                            voicegen_agent::into(ctx.wait_list.front().unwrap().clone().into(), ctx.addr, ctx.speaker, ctx.speech_rate)).await.unwrap();
 
                         println!("<clk>start tts_processing {:?}", ctx.wait_list.front().as_ref().unwrap().tweet_id);
                     } 
@@ -285,24 +299,21 @@ pub fn start(app_handle: tauri::AppHandle,
                         user_input::UserInput::Paused(msg) => {
                             ctx.paused = msg;
                         }
-                    }
-                }
 
-                Some(speaker) = speaker_rx.recv() => {
-                    println!("{:?}", speaker);
-                    ctx.addr = speaker.addr;
-                    ctx.speaker = speaker.speaker;
+                        user_input::UserInput::Speaker(speaker) => {
+                            println!("{:?}", speaker);
+                            ctx.addr = speaker.addr;
+                            ctx.speaker = speaker.speaker;
 
-                    if ctx.tts_processing {
-                        ctx.tts_processing = false;
-                        ctx.cancelling = true;
-                    }
-                    if ctx.ready_list.len() > 0 {
-                        ctx.ready_list.append(&mut ctx.wait_list);
-                        ctx.wait_list = ctx.ready_list.split_off(0);
-                        ctx.speech_cache.split_off(0);
-                    }
+                            remove_cache(&mut ctx);
+                        }
 
+                        user_input::UserInput::SpeechRate(speech_rate) => {
+                            ctx.speech_rate = speech_rate;
+
+                            remove_cache(&mut ctx);
+                        }
+                    }
                 }
 
                 else => {

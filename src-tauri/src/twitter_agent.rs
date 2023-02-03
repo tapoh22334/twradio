@@ -35,7 +35,17 @@ pub fn start(app_handle: tauri::AppHandle,
         loop {
             let tweets = match twitter_client::request_tweet_new(&token, user_id.as_str(), since_id).await {
             //let tweets = match twitter_client::request_user_timeline(&token, user_id.as_str(), start_time).await {
-                Ok(t) => t,
+                Ok(t) => {
+                    app_handle
+                        .emit_all("tauri://frontend/authorization-failed", "")
+                        .unwrap();
+
+                    app_handle
+                        .emit_all("tauri://frontend/other-error", "")
+                        .unwrap();
+
+                    t
+                },
                 Err(e) => {
                     match e {
                         twitter_client::RequestError::Unauthorized => {

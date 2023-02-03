@@ -61,11 +61,22 @@ async fn set_volume(volume: u32, state: tauri::State<'_, tokio::sync::Mutex<toki
 
 #[tauri::command]
 async fn set_speaker(speaker: voicegen_observer::Speaker,
-                     state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<voicegen_observer::Speaker>>>) -> Result<(), ()> {
+                     state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
     let tx = state.lock().await;
 
     println!("tauri://backend/set_speaker {:?}", speaker);
-    tx.send(speaker).await.unwrap();
+    tx.send(user_input::UserInput::Speaker(speaker)).await.unwrap();
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_speech_rate(speech_rate: f64,
+                        state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
+    let tx = state.lock().await;
+
+    println!("tauri://backend/set_speech_rate {:?}", speech_rate);
+    tx.send(user_input::UserInput::SpeechRate(speech_rate)).await.unwrap();
 
     Ok(())
 }
@@ -143,7 +154,6 @@ async fn main() -> std::io::Result<()> {
                 audioctl_tx.clone(),
                 audioctl_rdy_rx,
                 user_rx,
-                speaker_rx,
                 );
 
             println!("display_bridge::start");
@@ -167,8 +177,13 @@ async fn main() -> std::io::Result<()> {
         .manage(tokio::sync::Mutex::new(authctl_tx))
         .manage(tokio::sync::Mutex::new(audioctl_tx_c))
         .manage(tokio::sync::Mutex::new(user_tx))
-        .manage(tokio::sync::Mutex::new(speaker_tx))
-        .invoke_handler(tauri::generate_handler![setup_app, set_paused, set_volume, set_speaker, jump])
+        .invoke_handler(tauri::generate_handler![
+                        setup_app,
+                        set_paused,
+                        set_volume,
+                        set_speaker,
+                        set_speech_rate,
+                        jump])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
