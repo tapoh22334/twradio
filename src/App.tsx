@@ -130,6 +130,15 @@ function App() {
 
   }, []) ;
 
+  // Ignore right click on setting view
+  document.addEventListener(
+      "contextmenu",
+      (event) => {
+          console.log(event);
+          event.preventDefault();
+          },
+      { capture: true }
+  );
 
   return (
     <Box className="App" >
