@@ -1,4 +1,3 @@
-use serde::{Serialize, Deserialize};
 use axum::{
     extract::{Extension, Query},
     http::StatusCode,
@@ -6,6 +5,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tower_http::trace::TraceLayer;
@@ -13,15 +13,14 @@ use tracing_subscriber::prelude::*;
 
 use oauth2::basic::BasicClient;
 use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, RevocationUrl, Scope, TokenUrl,
+    AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
+    RedirectUrl, RevocationUrl, Scope, TokenUrl,
 };
 
 use twitter_v2::authorization::Oauth2Token;
 use twitter_v2::error::Result;
 
 use tauri::Manager;
-
 
 fn callback_server() -> SocketAddr {
     SocketAddr::from(([127, 0, 0, 1], 41157))
@@ -32,16 +31,17 @@ pub fn entrypoint_url() -> String {
 }
 
 pub fn new_oauth2_client() -> BasicClient {
-    let client_id      = ClientId::new("YkxNZ3ZDNzU4Q1ZNdEJfd0U2cFg6MTpjaQ".to_string());
-    let addr           = callback_server();
-    let redirect_url   = RedirectUrl::from_url(format!("http://{addr}/callback").parse().unwrap());
-    let auth_url       = AuthUrl::from_url("https://twitter.com/i/oauth2/authorize".parse().unwrap());
-    let token_url      = TokenUrl::from_url("https://api.twitter.com/2/oauth2/token".parse().unwrap());
-    let revocation_url = RevocationUrl::from_url("https://api.twitter.com/2/oauth2/revoke".parse().unwrap());
+    let client_id = ClientId::new("YkxNZ3ZDNzU4Q1ZNdEJfd0U2cFg6MTpjaQ".to_string());
+    let addr = callback_server();
+    let redirect_url = RedirectUrl::from_url(format!("http://{addr}/callback").parse().unwrap());
+    let auth_url = AuthUrl::from_url("https://twitter.com/i/oauth2/authorize".parse().unwrap());
+    let token_url = TokenUrl::from_url("https://api.twitter.com/2/oauth2/token".parse().unwrap());
+    let revocation_url =
+        RevocationUrl::from_url("https://api.twitter.com/2/oauth2/revoke".parse().unwrap());
 
     BasicClient::new(client_id, None, auth_url, Some(token_url))
-                .set_revocation_uri(revocation_url)
-                .set_redirect_uri(redirect_url)
+        .set_revocation_uri(revocation_url)
+        .set_redirect_uri(redirect_url)
 }
 
 struct Oauth2Ctx {
@@ -49,7 +49,7 @@ struct Oauth2Ctx {
     verifier: Option<PkceCodeVerifier>,
     state: Option<CsrfToken>,
     token: Option<Oauth2Token>,
-    token_tx: Option<tokio::sync::oneshot::Sender<Oauth2Token>>
+    token_tx: Option<tokio::sync::oneshot::Sender<Oauth2Token>>,
 }
 
 impl Oauth2Ctx {
@@ -69,13 +69,15 @@ async fn login(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoRes
     // create challenge
     let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
     // create authorization url
-    let (url, state) = ctx.oauth2client.authorize_url(CsrfToken::new_random)
-            .set_pkce_challenge(challenge)
-                // Set the desired scopes.
-            .add_scope(Scope::new("tweet.read".to_string()))
-            .add_scope(Scope::new("users.read".to_string()))
-            .add_scope(Scope::new("offline.access".to_string()))
-            .url();
+    let (url, state) = ctx
+        .oauth2client
+        .authorize_url(CsrfToken::new_random)
+        .set_pkce_challenge(challenge)
+        // Set the desired scopes.
+        .add_scope(Scope::new("tweet.read".to_string()))
+        .add_scope(Scope::new("users.read".to_string()))
+        .add_scope(Scope::new("offline.access".to_string()))
+        .url();
 
     // set context for reference in callback
     ctx.verifier = Some(verifier);
@@ -122,12 +124,13 @@ async fn callback(
     };
 
     // request oauth2 token
-    let token = client.exchange_code(code)
-            .set_pkce_verifier(verifier)
-            .request_async(oauth2::reqwest::async_http_client)
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
-            .unwrap();
+    let token = client
+        .exchange_code(code)
+        .set_pkce_verifier(verifier)
+        .request_async(oauth2::reqwest::async_http_client)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .unwrap();
 
     let token: Oauth2Token = token.try_into().unwrap();
 
@@ -137,7 +140,6 @@ async fn callback(
         ctx.token = Some(token.clone());
         ctx.token_tx.take().unwrap().send(token.clone()).unwrap();
     }
-
 
     Ok(Redirect::to("/result"))
 }
@@ -163,7 +165,8 @@ pub async fn refresh_token_if_expired(token: &mut Oauth2Token) -> Result<bool, &
     let client = new_oauth2_client();
     if token.is_expired() {
         if let Some(refresh_token) = token.refresh_token() {
-            let token_res = client.exchange_refresh_token(refresh_token)
+            let token_res = client
+                .exchange_refresh_token(refresh_token)
                 .request_async(oauth2::reqwest::async_http_client)
                 .await
                 .unwrap();
@@ -179,9 +182,10 @@ pub async fn refresh_token_if_expired(token: &mut Oauth2Token) -> Result<bool, &
     }
 }
 
-pub fn start_server() -> (tokio::sync::oneshot::Sender::<()>,
-                           tokio::sync::oneshot::Receiver::<Oauth2Token>){
-
+pub fn start_server() -> (
+    tokio::sync::oneshot::Sender<()>,
+    tokio::sync::oneshot::Receiver<Oauth2Token>,
+) {
     // initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
@@ -218,12 +222,10 @@ pub fn start_server() -> (tokio::sync::oneshot::Sender::<()>,
             })
             .await
             .unwrap();
-        }
-    );
+    });
 
     (shutdown_tx, token_rx)
 }
-
 
 async fn perform_oauth2_flow() -> Oauth2Token {
     let (shutdown_tx, token_rx) = start_server();
@@ -240,11 +242,14 @@ async fn get_token_from_storage(app_handle: &tauri::AppHandle) -> Option<Oauth2T
         .emit_all("tauri://frontend/token-request", ())
         .unwrap();
 
-    let (token_complete_tx, token_complete_rx) = tokio::sync::oneshot::channel::<Option<Oauth2Token>>();
-    let token_complete_tx : std::sync::Mutex<Option<tokio::sync::oneshot::Sender<Option<Oauth2Token>>>> = std::sync::Mutex::new(Some(token_complete_tx));
+    let (token_complete_tx, token_complete_rx) =
+        tokio::sync::oneshot::channel::<Option<Oauth2Token>>();
+    let token_complete_tx: std::sync::Mutex<
+        Option<tokio::sync::oneshot::Sender<Option<Oauth2Token>>>,
+    > = std::sync::Mutex::new(Some(token_complete_tx));
 
     let id = app_handle.listen_global("tauri://backend/token-response", move |event| {
-        let t : Option<Oauth2Token> = {
+        let t: Option<Oauth2Token> = {
             if let Some(payload) = event.payload() {
                 serde_json::from_str(payload).unwrap()
             } else {
@@ -262,7 +267,6 @@ async fn get_token_from_storage(app_handle: &tauri::AppHandle) -> Option<Oauth2T
     app_handle.unlisten(id);
 
     t
-
 }
 
 fn save_token_into_storage(app_handle: &tauri::AppHandle, token: Oauth2Token) {
@@ -276,50 +280,48 @@ pub enum AuthControl {
     Authorize,
 }
 
-pub fn start(app_handle: tauri::AppHandle, mut authctl_rx: tokio::sync::mpsc::Receiver<AuthControl>)
-    -> tokio::sync::mpsc::Receiver<Oauth2Token>{
+pub fn start(
+    app_handle: tauri::AppHandle,
+    mut authctl_rx: tokio::sync::mpsc::Receiver<AuthControl>,
+) -> tokio::sync::mpsc::Receiver<Oauth2Token> {
+    let (token_tx, token_rx) = tokio::sync::mpsc::channel::<Oauth2Token>(1);
 
-        let (token_tx, token_rx) = tokio::sync::mpsc::channel::<Oauth2Token>(1);
+    tokio::spawn(async move {
+        loop {
+            match authctl_rx.recv().await {
+                Some(msg) => match msg {
+                    AuthControl::Authorize => {
+                        let mut token: Oauth2Token = {
+                            if let Some(t) = get_token_from_storage(&app_handle).await {
+                                println!("token is already in storage");
 
-        tokio::spawn(async move {
-            loop {
-                match authctl_rx.recv().await {
-                    Some(msg) => {
-                        match msg {
-                            AuthControl::Authorize => {
-                                let mut token: Oauth2Token = {
-                                    if let Some(t) = get_token_from_storage(&app_handle).await {
-                                        println!("token is already in storage");
+                                t
+                            } else {
+                                println!("Token not found. Request authorization");
 
-                                        t
-                                    } else {
-                                        println!("Token not found. Request authorization");
+                                let t = perform_oauth2_flow().await;
+                                save_token_into_storage(&app_handle, t.clone());
+                                t
+                            }
+                        };
 
-                                        let t = perform_oauth2_flow().await;
-                                        save_token_into_storage(&app_handle, t.clone());
-                                        t
-                                    }
-                                };
-
-                                if refresh_token_if_expired(&mut token)
-                                    .await
-                                        .unwrap()
-                                        {
-                                            println!("******* Token refreshed *********");
-                                            save_token_into_storage(&app_handle, token.clone());
-                                        } else {
-                                            println!("token is not expired");
-                                        }
-
-                                token_tx.send(token).await.unwrap();
-                            },
+                        if refresh_token_if_expired(&mut token).await.unwrap() {
+                            println!("******* Token refreshed *********");
+                            save_token_into_storage(&app_handle, token.clone());
+                        } else {
+                            println!("token is not expired");
                         }
-                    },
 
-                    None => { return (); }
+                        token_tx.send(token).await.unwrap();
+                    }
+                },
+
+                None => {
+                    return ();
                 }
             }
-        });
+        }
+    });
 
-        token_rx
+    token_rx
 }

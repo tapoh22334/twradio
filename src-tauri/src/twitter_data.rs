@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tweet {
@@ -27,7 +27,7 @@ pub struct Meta {
     pub newest_id: Option<String>,
     pub next_token: Option<String>,
     pub oldest_id: Option<String>,
-    pub result_count: u32
+    pub result_count: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,4 +36,3 @@ pub struct TweetsResponse {
     pub includes: Option<Includes>,
     pub meta: Meta,
 }
-

@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::scheduler;
+use serde::{Deserialize, Serialize};
 
 use tauri::Manager;
 
@@ -28,40 +28,42 @@ impl From<scheduler::Record> for ViewElements {
             text: record.text,
             name: record.name,
             username: record.username,
-            profile_image_url: record.profile_image_url
+            profile_image_url: record.profile_image_url,
         }
     }
 }
 
-pub fn start(app_handle: tauri::AppHandle, mut display_rx: tokio::sync::mpsc::Receiver<DisplayContrl>)
-{
+pub fn start(
+    app_handle: tauri::AppHandle,
+    mut display_rx: tokio::sync::mpsc::Receiver<DisplayContrl>,
+) {
     tokio::spawn(async move {
         let lock: bool = false;
         loop {
             match display_rx.recv().await {
-                Some(msg) => {
-                    match msg {
-                        DisplayContrl::Add(ve) => {
-                            app_handle
-                                .emit_all("tauri://frontend/display/add", ve)
-                                .unwrap();
-                        },
+                Some(msg) => match msg {
+                    DisplayContrl::Add(ve) => {
+                        app_handle
+                            .emit_all("tauri://frontend/display/add", ve)
+                            .unwrap();
+                    }
 
-                        DisplayContrl::Delete(twid) => {
-                            app_handle
-                                .emit_all("tauri://frontend/display/delete", twid)
-                                .unwrap();
-                        },
+                    DisplayContrl::Delete(twid) => {
+                        app_handle
+                            .emit_all("tauri://frontend/display/delete", twid)
+                            .unwrap();
+                    }
 
-                        DisplayContrl::Scroll(twid) => {
-                            app_handle
-                                .emit_all("tauri://frontend/display/scroll", twid)
-                                .unwrap();
-                        },
+                    DisplayContrl::Scroll(twid) => {
+                        app_handle
+                            .emit_all("tauri://frontend/display/scroll", twid)
+                            .unwrap();
                     }
                 },
 
-                None => { return (); }
+                None => {
+                    return ();
+                }
             }
         }
     });

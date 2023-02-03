@@ -1,46 +1,62 @@
 #![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
 )]
 
 mod audio_player;
-mod scheduler;
 mod display_bridge;
+mod scheduler;
+mod twitter_agent;
+mod twitter_authorizator;
+mod twitter_client;
+mod twitter_data;
 mod user_input;
 mod voicegen_agent;
 mod voicegen_client;
-mod voicegen_filter;
 mod voicegen_data;
+mod voicegen_filter;
 mod voicegen_observer;
-mod twitter_agent;
-mod twitter_data;
-mod twitter_client;
-mod twitter_authorizator;
 
 use tauri::Manager;
 
 // async command function must return Result to avoid issue
 // https://github.com/tauri-apps/tauri/discussions/4317
 #[tauri::command]
-async fn setup_app(state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<twitter_authorizator::AuthControl>>>) -> Result<(), ()> {
+async fn setup_app(
+    state: tauri::State<
+        '_,
+        tokio::sync::Mutex<tokio::sync::mpsc::Sender<twitter_authorizator::AuthControl>>,
+    >,
+) -> Result<(), ()> {
     let tx = state.lock().await;
-    tx.send(twitter_authorizator::AuthControl::Authorize).await.unwrap();
+    tx.send(twitter_authorizator::AuthControl::Authorize)
+        .await
+        .unwrap();
     Ok(())
 }
 
 #[tauri::command]
-async fn set_paused(paused: bool,
-                    state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<audio_player::AudioControl>>>,
-                    userin: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
+async fn set_paused(
+    paused: bool,
+    state: tauri::State<
+        '_,
+        tokio::sync::Mutex<tokio::sync::mpsc::Sender<audio_player::AudioControl>>,
+    >,
+    userin: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>,
+) -> Result<(), ()> {
     {
         let tx = state.lock().await;
-        let ctl = if paused { audio_player::AudioControl::Pause } else { audio_player::AudioControl::Resume };
+        let ctl = if paused {
+            audio_player::AudioControl::Pause
+        } else {
+            audio_player::AudioControl::Resume
+        };
         tx.send(ctl).await.unwrap();
     }
 
     {
         let tx = userin.lock().await;
-        let ctl = user_input::UserInput::Paused( if paused {true} else {false} );
+        let ctl = user_input::UserInput::Paused(if paused { true } else { false });
         tx.send(ctl).await.unwrap();
     }
 
@@ -50,79 +66,95 @@ async fn set_paused(paused: bool,
 }
 
 #[tauri::command]
-async fn set_volume(volume: u32, state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<audio_player::AudioControl>>>) -> Result<(), ()> {
+async fn set_volume(
+    volume: u32,
+    state: tauri::State<
+        '_,
+        tokio::sync::Mutex<tokio::sync::mpsc::Sender<audio_player::AudioControl>>,
+    >,
+) -> Result<(), ()> {
     let tx = state.lock().await;
 
-    tx.send(audio_player::AudioControl::Volume(volume)).await.unwrap();
+    tx.send(audio_player::AudioControl::Volume(volume))
+        .await
+        .unwrap();
     println!("tauri://backend/set_volume {:?}", volume);
 
     Ok(())
 }
 
 #[tauri::command]
-async fn set_speaker(speaker: voicegen_observer::Speaker,
-                     state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
+async fn set_speaker(
+    speaker: voicegen_observer::Speaker,
+    state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>,
+) -> Result<(), ()> {
     let tx = state.lock().await;
 
     println!("tauri://backend/set_speaker {:?}", speaker);
-    tx.send(user_input::UserInput::Speaker(speaker)).await.unwrap();
+    tx.send(user_input::UserInput::Speaker(speaker))
+        .await
+        .unwrap();
 
     Ok(())
 }
 
 #[tauri::command]
-async fn set_speech_rate(speech_rate: f64,
-                        state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
+async fn set_speech_rate(
+    speech_rate: f64,
+    state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>,
+) -> Result<(), ()> {
     let tx = state.lock().await;
 
     println!("tauri://backend/set_speech_rate {:?}", speech_rate);
-    tx.send(user_input::UserInput::SpeechRate(speech_rate)).await.unwrap();
+    tx.send(user_input::UserInput::SpeechRate(speech_rate))
+        .await
+        .unwrap();
 
     Ok(())
 }
 
 #[tauri::command]
-async fn jump(twid: &str, state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>) -> Result<(), ()> {
+async fn jump(
+    twid: &str,
+    state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>,
+) -> Result<(), ()> {
     let tx = state.lock().await;
 
-    tx.send(user_input::UserInput::Jump(twid.to_string())).await.unwrap();
+    tx.send(user_input::UserInput::Jump(twid.to_string()))
+        .await
+        .unwrap();
     println!("tauri://backend/jump {:?}", twid);
 
     Ok(())
 }
 
-
-const QUEUE_LENGTH : usize = 256;
+const QUEUE_LENGTH: usize = 256;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     tauri::async_runtime::set(tokio::runtime::Handle::current());
 
-    let (authctl_tx, authctl_rx)
-        = tokio::sync::mpsc::channel::<twitter_authorizator::AuthControl>(1);
+    let (authctl_tx, authctl_rx) =
+        tokio::sync::mpsc::channel::<twitter_authorizator::AuthControl>(1);
     let authctl_tx_c = authctl_tx.clone();
 
-    let (display_tx, display_rx)
-        = tokio::sync::mpsc::channel::<display_bridge::DisplayContrl>(QUEUE_LENGTH);
+    let (display_tx, display_rx) =
+        tokio::sync::mpsc::channel::<display_bridge::DisplayContrl>(QUEUE_LENGTH);
 
-    let (playbook_tx, playbook_rx) 
-        = tokio::sync::mpsc::channel::<voicegen_agent::Playbook>(1);
+    let (playbook_tx, playbook_rx) = tokio::sync::mpsc::channel::<voicegen_agent::Playbook>(1);
 
-    let (speech_tx, speech_rx) 
-        = tokio::sync::mpsc::channel::<Option<voicegen_agent::Speech>>(1);
+    let (speech_tx, speech_rx) = tokio::sync::mpsc::channel::<Option<voicegen_agent::Speech>>(1);
 
-    let (audioctl_tx, audioctl_rx) 
-        = tokio::sync::mpsc::channel::<audio_player::AudioControl>(QUEUE_LENGTH);
+    let (audioctl_tx, audioctl_rx) =
+        tokio::sync::mpsc::channel::<audio_player::AudioControl>(QUEUE_LENGTH);
     let audioctl_tx_c = audioctl_tx.clone();
 
-    let (audioctl_rdy_tx, audioctl_rdy_rx) 
-        = tokio::sync::mpsc::channel::<audio_player::AudioControlRdy>(1);
+    let (audioctl_rdy_tx, audioctl_rdy_rx) =
+        tokio::sync::mpsc::channel::<audio_player::AudioControlRdy>(1);
 
-    let (user_tx, user_rx)
-        = tokio::sync::mpsc::channel::<user_input::UserInput>(QUEUE_LENGTH);
+    let (user_tx, user_rx) = tokio::sync::mpsc::channel::<user_input::UserInput>(QUEUE_LENGTH);
 
-    let (speaker_tx, speaker_rx)
-        = tokio::sync::mpsc::channel::<voicegen_observer::Speaker>(1);
+    let (speaker_tx, speaker_rx) = tokio::sync::mpsc::channel::<voicegen_observer::Speaker>(1);
 
     println!("twitter_authorizator::start");
 
@@ -146,7 +178,8 @@ async fn main() -> std::io::Result<()> {
             voicegen_observer::start(app_handle.clone());
 
             println!("scheduler::start");
-            scheduler::start( app_handle.clone(),
+            scheduler::start(
+                app_handle.clone(),
                 tweet_rx,
                 display_tx.clone(),
                 playbook_tx.clone(),
@@ -154,7 +187,7 @@ async fn main() -> std::io::Result<()> {
                 audioctl_tx.clone(),
                 audioctl_rdy_rx,
                 user_rx,
-                );
+            );
 
             println!("display_bridge::start");
             display_bridge::start(app_handle.clone(), display_rx);
@@ -178,12 +211,13 @@ async fn main() -> std::io::Result<()> {
         .manage(tokio::sync::Mutex::new(audioctl_tx_c))
         .manage(tokio::sync::Mutex::new(user_tx))
         .invoke_handler(tauri::generate_handler![
-                        setup_app,
-                        set_paused,
-                        set_volume,
-                        set_speaker,
-                        set_speech_rate,
-                        jump])
+            setup_app,
+            set_paused,
+            set_volume,
+            set_speaker,
+            set_speech_rate,
+            jump
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 

@@ -1,15 +1,15 @@
+use serde::{Deserialize, Serialize};
 use std::collections::LinkedList;
-use serde::{Serialize, Deserialize};
 use tauri::Manager;
 
-use crate::twitter_data;
-use crate::display_bridge;
-use crate::voicegen_agent;
 use crate::audio_player;
+use crate::display_bridge;
+use crate::twitter_data;
 use crate::user_input;
+use crate::voicegen_agent;
 use crate::voicegen_observer;
 
-const QUEUE_LENGTH : usize = 24;
+const QUEUE_LENGTH: usize = 24;
 const HISTORY_LENGTH: usize = 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,7 +23,10 @@ pub struct Record {
 }
 
 pub fn into(tweet: &twitter_data::Tweet, users: &Vec<twitter_data::User>) -> Record {
-    let user = users.iter().find(|user| user.id == tweet.author_id).unwrap();
+    let user = users
+        .iter()
+        .find(|user| user.id == tweet.author_id)
+        .unwrap();
 
     Record {
         tweet_id: tweet.id.clone(),
@@ -35,7 +38,7 @@ pub fn into(tweet: &twitter_data::Tweet, users: &Vec<twitter_data::User>) -> Rec
     }
 }
 
-fn remove<T>(list: &mut LinkedList::<T>, index: usize) -> T {
+fn remove<T>(list: &mut LinkedList<T>, index: usize) -> T {
     if index == 0 {
         let v = list.pop_front().unwrap();
 
@@ -58,10 +61,10 @@ struct Context {
     pub cancelling: bool,
     pub paused: bool,
     pub tts_processing: bool,
-    pub wait_list: LinkedList::<Record>,
-    pub ready_list: LinkedList::<Record>,
-    pub played_list: LinkedList::<Record>,
-    pub speech_cache: LinkedList::<voicegen_agent::Speech>,
+    pub wait_list: LinkedList<Record>,
+    pub ready_list: LinkedList<Record>,
+    pub played_list: LinkedList<Record>,
+    pub speech_cache: LinkedList<voicegen_agent::Speech>,
 }
 
 impl Context {
@@ -94,16 +97,16 @@ fn remove_cache(ctx: &mut Context) {
     }
 }
 
-pub fn start(app_handle: tauri::AppHandle,
-             mut tweet_rx: tokio::sync::mpsc::Receiver<Record>,
-             display_tx: tokio::sync::mpsc::Sender<display_bridge::DisplayContrl>,
-             playbook_tx: tokio::sync::mpsc::Sender<voicegen_agent::Playbook>,
-             mut speech_rx: tokio::sync::mpsc::Receiver<Option<voicegen_agent::Speech>>,
-             audioctl_tx: tokio::sync::mpsc::Sender<audio_player::AudioControl>,
-             mut audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>,
-             mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>,
-             )
-{
+pub fn start(
+    app_handle: tauri::AppHandle,
+    mut tweet_rx: tokio::sync::mpsc::Receiver<Record>,
+    display_tx: tokio::sync::mpsc::Sender<display_bridge::DisplayContrl>,
+    playbook_tx: tokio::sync::mpsc::Sender<voicegen_agent::Playbook>,
+    mut speech_rx: tokio::sync::mpsc::Receiver<Option<voicegen_agent::Speech>>,
+    audioctl_tx: tokio::sync::mpsc::Sender<audio_player::AudioControl>,
+    mut audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>,
+    mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>,
+) {
     // Context
     let mut ctx = Context::new();
 
@@ -118,7 +121,8 @@ pub fn start(app_handle: tauri::AppHandle,
 
     tokio::spawn(async move {
         loop {
-            println!("{:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
+            println!(
+                "{:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
                 ctx.addr,
                 ctx.speaker,
                 ctx.speech_rate,
@@ -128,10 +132,11 @@ pub fn start(app_handle: tauri::AppHandle,
                 ctx.speech_cache.len(),
                 ctx.cancelling,
                 ctx.paused,
-                ctx.tts_processing);
+                ctx.tts_processing
+            );
 
             print!("scheduler: Select> ");
-            tokio::select!{
+            tokio::select! {
                 Some(_) = clk_rx.recv() => {
                     // Obtain Tweet
 
@@ -172,7 +177,7 @@ pub fn start(app_handle: tauri::AppHandle,
                             voicegen_agent::into(ctx.wait_list.front().unwrap().clone().into(), ctx.addr, ctx.speaker, ctx.speech_rate)).await.unwrap();
 
                         println!("<clk>start tts_processing {:?}", ctx.wait_list.front().as_ref().unwrap().tweet_id);
-                    } 
+                    }
 
                     // Process TTS Result
                     match speech_rx.try_recv() {
@@ -323,5 +328,4 @@ pub fn start(app_handle: tauri::AppHandle,
             }
         }
     });
-
 }

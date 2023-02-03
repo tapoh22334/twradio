@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::voicegen_observer;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum UserInput {
@@ -8,4 +8,3 @@ pub enum UserInput {
     Speaker(voicegen_observer::Speaker),
     SpeechRate(f64),
 }
-

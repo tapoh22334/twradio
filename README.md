@@ -58,6 +58,13 @@ npm install
 cargo tauri build
 ```
 
+lint, format
+
+```
+npx prettier --write src/*.ts src/*.tsx
+(cd src-tauri; cargo fmt)
+(cd src-tauri; cargo clippy -- -D warnings)
+```
 
 ## ライセンス
 
