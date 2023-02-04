@@ -32,19 +32,13 @@ function App() {
   const {
     focusTweetIdPair,
     tweetListPair,
-    pausedPair,
     focusedPair,
-    speakerPair,
-    speakerListPair,
     speechRatePair,
   } = React.useContext(AppContext);
 
   const [focusTweetId, setFocusTweetId] = focusTweetIdPair;
   const [tweetList, setTweetList] = tweetListPair;
-  const [paused, setPaused] = pausedPair;
   const [focused, setFocused] = focusedPair;
-  const [speaker, setSpeaker] = speakerPair;
-  const [speakerList, setSpeakerList] = speakerListPair;
   const [speechRate, setSpeechRate] = speechRatePair;
 
   const scrollToFocus = (twid: string) => {
