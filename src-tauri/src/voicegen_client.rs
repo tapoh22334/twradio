@@ -1,6 +1,4 @@
-use reqwest::Url;
-use serde::{Deserialize, Serialize};
-use serde_json::value::Value;
+use serde::Serialize;
 
 use crate::voicegen_data;
 
@@ -14,56 +12,6 @@ struct Body {
 pub enum RequestError {
     Unknown(String),
 }
-
-//#[derive(Debug, Clone, Serialize, Deserialize)]
-//struct Mora {
-//    text: Value,
-//    consonant: Value,
-//    consonant_length: Value,
-//    vowel: Value,
-//    vowel_length: Value,
-//    pitch: Value
-//}
-//
-//#[derive(Debug, Clone, Serialize, Deserialize)]
-//struct PauseMora {
-//    text: Value,
-//    consonant: Value,
-//    consonant_length: Value,
-//    vowel: Value,
-//    vowel_length: Value,
-//    pitch: Value
-//}
-//
-//#[derive(Debug, Clone, Serialize, Deserialize)]
-//struct AccentPhrase {
-//    moras: Vec<Mora>,
-//    accent: Value,
-//    pause_mora: Value,
-//    is_interrogative: Value
-//}
-//
-//#[derive(Debug, Clone, Serialize, Deserialize)]
-//struct AudioQuery{
-//    accent_phrases: Vec<AccentPhrase>,
-//    #[serde(rename(serialize = "speedScale", deserialize = "speedScale"))]
-//    speed_scale: Value,
-//    #[serde(rename(serialize = "pitchScale", deserialize = "pitchScale"))]
-//    pitch_scale: Value,
-//    #[serde(rename(serialize = "intonationScale", deserialize = "intonationScale"))]
-//    intonation_scale: Value,
-//    #[serde(rename(serialize = "volumeScale", deserialize = "volumeScale"))]
-//    volume_scale: Value,
-//    #[serde(rename(serialize = "prePhonemeLength", deserialize = "prePhonemeLength"))]
-//    pre_phoneme_length: Value,
-//    #[serde(rename(serialize = "postPhonemeLength", deserialize = "postPhonemeLength"))]
-//    post_phoneme_length: Value,
-//    #[serde(rename(serialize = "outputSamplingRate", deserialize = "outputSamplingRate"))]
-//    output_sampling_rate: Value,
-//    #[serde(rename(serialize = "outputStereo", deserialize = "outputStereo"))]
-//    output_stereo: Value,
-//    kana: Value
-//}
 
 pub async fn request_voice(
     addr: std::net::SocketAddr,

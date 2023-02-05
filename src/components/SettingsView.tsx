@@ -73,6 +73,7 @@ export const Settings = () => {
                 </FormControl>
             </Box>
 
+            {/*
             <Box margin={2}>
                 <Typography gutterBottom>
                   話速
@@ -86,6 +87,7 @@ export const Settings = () => {
                   onChange={onSpeechRateChange}
                 />
             </Box>
+            */}
         </Box>
     );
 

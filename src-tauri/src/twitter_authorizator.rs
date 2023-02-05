@@ -144,7 +144,7 @@ async fn callback(
     Ok(Redirect::to("/result"))
 }
 
-async fn auth_result(Extension(ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoResponse {
+async fn auth_result(Extension(_ctx): Extension<Arc<Mutex<Oauth2Ctx>>>) -> impl IntoResponse {
     Ok::<_, (StatusCode, String)>("Complete! close this window")
 }
 

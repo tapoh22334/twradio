@@ -17,7 +17,7 @@ pub enum AudioControl {
 pub struct AudioControlRdy {}
 
 pub fn start(
-    app_handle: tauri::AppHandle,
+    _app_handle: tauri::AppHandle,
     mut audioctl_rx: tokio::sync::mpsc::Receiver<AudioControl>,
     audioctl_rdy_tx: tokio::sync::mpsc::Sender<AudioControlRdy>,
 ) {

@@ -1,15 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::LinkedList;
-use tauri::Manager;
 
 use crate::audio_player;
 use crate::display_bridge;
 use crate::twitter_data;
 use crate::user_input;
 use crate::voicegen_agent;
-use crate::voicegen_observer;
 
-const QUEUE_LENGTH: usize = 24;
 const HISTORY_LENGTH: usize = 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,7 +95,7 @@ fn remove_cache(ctx: &mut Context) {
 }
 
 pub fn start(
-    app_handle: tauri::AppHandle,
+    _app_handle: tauri::AppHandle,
     mut tweet_rx: tokio::sync::mpsc::Receiver<Record>,
     display_tx: tokio::sync::mpsc::Sender<display_bridge::DisplayContrl>,
     playbook_tx: tokio::sync::mpsc::Sender<voicegen_agent::Playbook>,

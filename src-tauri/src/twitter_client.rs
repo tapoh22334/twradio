@@ -43,58 +43,58 @@ pub async fn request_user_id(token: &Oauth2Token) -> Result<String, RequestError
     Ok(user_id.to_string())
 }
 
-pub async fn request_user_timeline(
-    token: &Oauth2Token,
-    user_id: &str,
-    start_time: Option<&str>,
-) -> Result<twitter_data::TweetsResponse, RequestError> {
-    let client = reqwest::Client::new();
-    let auth_val = format!("Bearer {}", token.access_token().secret());
-
-    let mut query = [
-        ("expansions", "author_id"),
-        ("user.fields", "profile_image_url"),
-        ("tweet.fields", "created_at"),
-        ("max_results", "25"),
-    ]
-    .to_vec();
-    match start_time {
-        Some(s) => {
-            query.push(("start_time", s));
-        }
-        None => {}
-    };
-
-    let url = base_url()
-        .join(format!("users/{user_id}/tweets").as_str())
-        .unwrap();
-    let timeline = client
-        .get(url)
-        .header(reqwest::header::AUTHORIZATION, auth_val.clone())
-        .query(&query)
-        .send()
-        .await
-        .map_err(|e| RequestError::Unknown(e.to_string()))?;
-
-    let timeline = match timeline.status() {
-        reqwest::StatusCode::OK => {
-            println!("{:?}", timeline.status());
-            let timeline = timeline.text().await.unwrap();
-            println!("{:?}", timeline);
-            serde_json::from_str::<twitter_data::TweetsResponse>(timeline.as_str()).unwrap()
-        }
-
-        reqwest::StatusCode::UNAUTHORIZED => {
-            return Err(RequestError::Unauthorized);
-        }
-
-        _ => {
-            return Err(RequestError::Unknown(timeline.status().to_string()));
-        }
-    };
-
-    Ok(timeline)
-}
+//pub async fn request_user_timeline(
+//    token: &Oauth2Token,
+//    user_id: &str,
+//    start_time: Option<&str>,
+//) -> Result<twitter_data::TweetsResponse, RequestError> {
+//    let client = reqwest::Client::new();
+//    let auth_val = format!("Bearer {}", token.access_token().secret());
+//
+//    let mut query = [
+//        ("expansions", "author_id"),
+//        ("user.fields", "profile_image_url"),
+//        ("tweet.fields", "created_at"),
+//        ("max_results", "25"),
+//    ]
+//    .to_vec();
+//    match start_time {
+//        Some(s) => {
+//            query.push(("start_time", s));
+//        }
+//        None => {}
+//    };
+//
+//    let url = base_url()
+//        .join(format!("users/{user_id}/tweets").as_str())
+//        .unwrap();
+//    let timeline = client
+//        .get(url)
+//        .header(reqwest::header::AUTHORIZATION, auth_val.clone())
+//        .query(&query)
+//        .send()
+//        .await
+//        .map_err(|e| RequestError::Unknown(e.to_string()))?;
+//
+//    let timeline = match timeline.status() {
+//        reqwest::StatusCode::OK => {
+//            println!("{:?}", timeline.status());
+//            let timeline = timeline.text().await.unwrap();
+//            println!("{:?}", timeline);
+//            serde_json::from_str::<twitter_data::TweetsResponse>(timeline.as_str()).unwrap()
+//        }
+//
+//        reqwest::StatusCode::UNAUTHORIZED => {
+//            return Err(RequestError::Unauthorized);
+//        }
+//
+//        _ => {
+//            return Err(RequestError::Unknown(timeline.status().to_string()));
+//        }
+//    };
+//
+//    Ok(timeline)
+//}
 
 pub async fn request_tweet_new(
     token: &Oauth2Token,

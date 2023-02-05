@@ -1,4 +1,3 @@
-use crate::scheduler;
 use crate::voicegen_client;
 use crate::voicegen_data;
 use serde::{Deserialize, Serialize};
@@ -67,7 +66,7 @@ pub fn start(app_handle: tauri::AppHandle) {
     let ctx = std::sync::Mutex::new(Some(wait_tx));
     let id = app_handle
         .clone()
-        .listen_global("tauri://backend/ipc-init", move |event| {
+        .listen_global("tauri://backend/ipc-init", move |_| {
             let mut rdy_tx = ctx.lock().unwrap();
             rdy_tx.take().unwrap().send(()).unwrap()
         });

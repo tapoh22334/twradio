@@ -154,8 +154,6 @@ async fn main() -> std::io::Result<()> {
 
     let (user_tx, user_rx) = tokio::sync::mpsc::channel::<user_input::UserInput>(QUEUE_LENGTH);
 
-    let (speaker_tx, speaker_rx) = tokio::sync::mpsc::channel::<voicegen_observer::Speaker>(1);
-
     println!("twitter_authorizator::start");
 
     tauri::Builder::default()

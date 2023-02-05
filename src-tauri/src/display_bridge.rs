@@ -38,7 +38,6 @@ pub fn start(
     mut display_rx: tokio::sync::mpsc::Receiver<DisplayContrl>,
 ) {
     tokio::spawn(async move {
-        let lock: bool = false;
         loop {
             match display_rx.recv().await {
                 Some(msg) => match msg {

@@ -4,12 +4,11 @@ use crate::voicegen_filter;
 use serde::{Deserialize, Serialize};
 use wana_kana::to_hiragana::*;
 
-use std::collections::HashMap;
 
 use tauri::Manager;
 
-const REQUEST_PERIOD: u64 = 3000; // milliseconds
-                                  //
+//const REQUEST_PERIOD: u64 = 3000; // milliseconds
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Playbook {
     pub tweet_id: String,
@@ -53,7 +52,7 @@ pub fn start(
     let ctx = std::sync::Mutex::new(Some(tx));
     let id = app_handle
         .clone()
-        .listen_global("tauri://backend/speakers-ready", move |event| {
+        .listen_global("tauri://backend/speakers-ready", move |_| {
             let mut rdy_tx = ctx.lock().unwrap();
             rdy_tx.take().unwrap().send(()).unwrap()
         });
@@ -63,15 +62,11 @@ pub fn start(
         let _ = rx.await.unwrap();
         app_handle.unlisten(id);
 
-        let mut name_cache: HashMap<String, Vec<u8>> = HashMap::new();
         loop {
             match playbook_rx.recv().await {
                 Some(msg) => {
-                    let mut speech_name = None;
-                    let mut speech_text = None;
-
                     // Modify username for speech
-                    //
+
                     let hira_name = to_hiragana(msg.name.as_str());
                     let resp = voicegen_client::request_voice(
                         msg.addr,
@@ -81,7 +76,7 @@ pub fn start(
                     )
                     .await;
 
-                    speech_name = match resp {
+                    let speech_name = match resp {
                         Ok(s) => {
                             app_handle
                                 .emit_all("tauri://frontend/tts-failed", "")
@@ -116,7 +111,7 @@ pub fn start(
                         &hira_text,
                     )
                     .await;
-                    speech_text = match resp {
+                    let speech_text = match resp {
                         Ok(s) => {
                             app_handle
                                 .emit_all("tauri://frontend/tts-failed", "")

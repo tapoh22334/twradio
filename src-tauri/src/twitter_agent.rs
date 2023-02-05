@@ -21,11 +21,15 @@ pub fn start(
         let mut token = token_rx.recv().await.unwrap();
 
         let user_id = match twitter_client::request_user_id(&token).await {
-            Ok(t) => t,
-            Err(e) => "".to_string(),
+            Ok(t) => {
+                t
+            }
+            Err(e) => { 
+                println!("{:?}", e);
+                "".to_string()
+            }
         };
 
-        let mut since_id_str: String;
         let mut since_id: Option<&str> = None;
         let mut latest_tweet_id: String = "".to_string();
 
@@ -47,6 +51,7 @@ pub fn start(
                     Err(e) => match e {
                         twitter_client::RequestError::Unauthorized => {
                             println!("{:?}", e);
+
                             authctl_tx
                                 .send(twitter_authorizator::AuthControl::Authorize)
                                 .await
@@ -66,6 +71,8 @@ pub fn start(
                         }
 
                         twitter_client::RequestError::Unknown(msg) => {
+                            println!("{:?}", msg);
+
                             app_handle
                                 .emit_all(
                                     "tauri://frontend/other-error",
