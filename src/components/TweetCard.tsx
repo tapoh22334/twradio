@@ -68,8 +68,8 @@ const format_time = (utc: string) => {
     return res;
 }
 
-const emit_open_browser = (author_id: string, tweet_id: string) => {
-    let url = 'http://twitter.com/' + author_id + '/status/' + tweet_id;
+const emit_open_browser = (user_id: string, tweet_id: string) => {
+    let url = 'http://twitter.com/' + user_id + '/status/' + tweet_id;
     console.log(url);
     emit("tauri://backend/open_browser", {"url": url});
 }
@@ -77,7 +77,7 @@ const emit_open_browser = (author_id: string, tweet_id: string) => {
 const TweetLiText: React.FC<TweetLiProps> = (props) => {
     return (
         <ListItemText
-          onClick={ () => { emit_open_browser( props.author_id, props.tweet_id ) } }
+          onClick={ () => { emit_open_browser( props.user_id, props.tweet_id ) } }
           primary={
             <React.Fragment>
 
