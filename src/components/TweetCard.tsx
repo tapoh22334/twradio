@@ -6,6 +6,10 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemText from '@mui/material/ListItemText';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
+import Box from "@mui/material/Box";
+import ImageList from '@mui/material/ImageList';
+import ImageListItem from '@mui/material/ImageListItem';
+
 
 export type TweetProps = {
     tweet_id: string,
@@ -14,6 +18,7 @@ export type TweetProps = {
     time: string,
     tweet: string,
     profile_image_url: string,
+    attachments: [string,string][];
 }
 
 export type TweetLiProps = {
@@ -23,6 +28,7 @@ export type TweetLiProps = {
     time: string,
     tweet: string,
     profile_image_url: string,
+    attachments: [string,string][],
     focus: boolean,
 }
 
@@ -87,7 +93,32 @@ const TweetLiText: React.FC<TweetLiProps> = (props) => {
             </React.Fragment>
           }
 
-          secondary={ props.tweet }
+          secondary={ 
+            <React.Fragment>
+                <Box>
+                    {props.tweet}
+                </Box>
+                <Box>
+                    <ImageList >
+                      {
+                          props.attachments.map(([key, value]) => {
+                              const cols = props.attachments.length == 1 ? 2 : 1;
+                              const rows = props.attachments.length == 1 ? 2 : 1;
+
+                              return (
+                                <ImageListItem cols={cols} rows={rows}>
+                                    <img
+                                      src={value}
+                                      loading="lazy"
+                                    />
+                                </ImageListItem>
+                              )
+                          })
+                      }
+                    </ImageList>
+                </Box>
+            </React.Fragment>
+          }
 
         />
     );
@@ -98,7 +129,7 @@ export const TweetLi: React.FC<TweetLiProps> = (props) => {
       return (
           <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px", border: "1px solid #6c757d", borderRadius: "8px"}}>
             <ListItemAvatar>
-              <Avatar alt="Cindy Baker" src={props.profile_image_url} />
+              <Avatar src={props.profile_image_url} />
             </ListItemAvatar>
             <TweetLiText {...props} />
           </ListItem>
@@ -108,7 +139,7 @@ export const TweetLi: React.FC<TweetLiProps> = (props) => {
       return (
           <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px"}}>
             <ListItemAvatar>
-              <Avatar alt="Cindy Baker" src={props.profile_image_url} />
+              <Avatar src={props.profile_image_url} />
             </ListItemAvatar>
             <TweetLiText {...props} />
           </ListItem>

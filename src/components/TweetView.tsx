@@ -27,6 +27,7 @@ export const TweetView = ({tweets}: {tweets: Array<TweetProps>} ) => {
                                 time={row.time}
                                 tweet={row.tweet}
                                 profile_image_url={row.profile_image_url}
+                                attachments={row.attachments}
                                 focus={false}
                                 />
                             <Divider component="li" />

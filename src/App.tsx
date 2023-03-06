@@ -26,6 +26,7 @@ type ViewElements = {
   name: string;
   username: string;
   profile_image_url: string;
+  attachments: [string,string][];
 };
 
 function App() {
@@ -90,6 +91,7 @@ function App() {
         time: data.created_at,
         tweet: data.text,
         profile_image_url: data.profile_image_url,
+        attachments: data.attachments,
       });
       setTweetList([...tweetList]);
     });

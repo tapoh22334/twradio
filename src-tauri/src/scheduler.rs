@@ -17,21 +17,43 @@ pub struct Record {
     pub name: String,
     pub username: String,
     pub profile_image_url: String,
+    pub attachments: Vec<(String, String)>,
 }
 
-pub fn into(tweet: &twitter_data::Tweet, users: &Vec<twitter_data::User>) -> Record {
+pub fn into(tweet: &serde_json::Value, users: &Vec<serde_json::Value>, medias: &Vec<serde_json::Value>) -> Record {
     let user = users
         .iter()
-        .find(|user| user.id == tweet.author_id)
+        .find(|user| user["id"] == tweet["author_id"])
         .unwrap();
 
+    let mut attachments = Vec::new();
+    let media_keys = tweet["attachments"]["media_keys"].as_array();
+    if media_keys != None {
+        for media_key in media_keys.unwrap() {
+            let media = medias
+                .iter()
+                .find(|media| media["media_key"].as_str().unwrap() == media_key.as_str().unwrap())
+                .unwrap();
+
+            let mtype = media["type"].as_str().unwrap().to_string();
+            if mtype == "photo" {
+                attachments.push((mtype, media["url"].as_str().unwrap().to_string()));
+            } else if mtype == "gif" {
+                attachments.push((mtype, media["preview_image_url"].as_str().unwrap().to_string()));
+            } else if mtype == "video"{
+                attachments.push((mtype, media["preview_image_url"].as_str().unwrap().to_string()));
+            }
+        }
+    }
+
     Record {
-        tweet_id: tweet.id.clone(),
-        created_at: tweet.created_at.clone(),
-        text: tweet.text.clone(),
-        name: user.name.clone(),
-        username: user.username.clone(),
-        profile_image_url: user.profile_image_url.clone(),
+        tweet_id: tweet["id"].as_str().unwrap().to_string(),
+        created_at: tweet["created_at"].as_str().unwrap().to_string(),
+        text: tweet["text"].as_str().unwrap().to_string(),
+        name: user["name"].as_str().unwrap().to_string(),
+        username: user["username"].as_str().unwrap().to_string(),
+        profile_image_url: user["profile_image_url"].as_str().unwrap().to_string(),
+        attachments,
     }
 }
 

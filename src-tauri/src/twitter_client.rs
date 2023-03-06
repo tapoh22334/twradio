@@ -100,22 +100,21 @@ pub async fn request_tweet_new(
     token: &Oauth2Token,
     user_id: &str,
     since_id: Option<&str>,
-) -> Result<twitter_data::TweetsResponse, RequestError> {
+) -> Result<serde_json::Value, RequestError> {
     let client = reqwest::Client::new();
     let auth_val = format!("Bearer {}", token.access_token().secret());
 
     let mut query = [
-        ("expansions", "author_id"),
+        ("expansions", "author_id,attachments.media_keys"),
         ("user.fields", "profile_image_url"),
         ("tweet.fields", "created_at"),
+        ("media.fields", "preview_image_url,type,url"),
         ("max_results", "25"),
     ]
     .to_vec();
 
     match since_id {
-        Some(s) => {
-            query.push(("since_id", s));
-        }
+        Some(s) => { query.push(("since_id", s)); }
         None => {}
     };
 
@@ -132,10 +131,10 @@ pub async fn request_tweet_new(
 
     let timeline = match timeline.status() {
         reqwest::StatusCode::OK => {
-            println!("{:?}", timeline.status());
             let timeline = timeline.text().await.unwrap();
-            println!("{:?}", timeline);
-            serde_json::from_str::<twitter_data::TweetsResponse>(timeline.as_str()).unwrap()
+
+            println!("twitter_client: {:?}", timeline);
+            serde_json::from_str::<serde_json::Value>(timeline.as_str()).unwrap()
         }
 
         reqwest::StatusCode::UNAUTHORIZED => {
@@ -143,7 +142,10 @@ pub async fn request_tweet_new(
         }
 
         _ => {
-            return Err(RequestError::Unknown(timeline.status().to_string()));
+            let timeline = timeline.text().await.unwrap();
+            println!("twitter_client: {:?}", timeline);
+            //return Err(RequestError::Unknown(timeline.status().to_string()));
+            return Err(RequestError::Unknown(timeline));
         }
     };
 

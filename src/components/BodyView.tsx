@@ -28,6 +28,7 @@ export const TweetView = (tweetList: Array<TweetProps>) => {
                                 tweet={row.tweet}
                                 profile_image_url={row.profile_image_url}
                                 //focus={row.tweet_id === focusTwid ? true : false}
+                                attachments={row.attachments}
                                 focus={false}
                                 />
                             <Divider component="li" />

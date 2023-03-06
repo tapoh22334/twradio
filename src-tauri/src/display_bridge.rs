@@ -11,6 +11,7 @@ pub struct ViewElements {
     pub name: String,
     pub username: String,
     pub profile_image_url: String,
+    pub attachments: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +30,7 @@ impl From<scheduler::Record> for ViewElements {
             name: record.name,
             username: record.username,
             profile_image_url: record.profile_image_url,
+            attachments: record.attachments,
         }
     }
 }
