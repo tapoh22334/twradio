@@ -7,7 +7,8 @@ import ListItem from '@mui/material/ListItem';
 
 import { TweetLi, TweetProps } from './TweetCard'
 
-export const TweetView = ({tweets}: {tweets: Array<TweetProps>} ) => {
+export const TweetView = ({tweets}: {tweets: Array<TweetProps>}) => {
+
     return (
         <List
           sx={{

@@ -1,7 +1,6 @@
 import React from 'react';
 
 import { AppContext } from '../AppContext'
-import { useLocation } from 'react-router-dom';
 
 import { invoke } from '@tauri-apps/api'
 
@@ -23,8 +22,6 @@ export const TWAppBar = () => {
   const [tweetList, setTweetList] = tweetListPair;
   const [paused, setPaused] = pausedPair;
   const [focused, setFocused] = focusedPair;
-
-  const location = useLocation();
 
   const onPauseResumeClick = () => {
     setPaused(!paused);
@@ -78,21 +75,18 @@ export const TWAppBar = () => {
           <IconButton
               color="inherit"
               onClick={onPauseResumeClick}
-              disabled={!(location.pathname === "/")}
           >
               {paused ? <PlayArrowRounded /> : <PauseRounded />}
           </IconButton>
 
           <IconButton
               color="inherit"
-              disabled={!(location.pathname === "/")}
               onClick={onSkipClick}>
               <FastForwardRounded />
           </IconButton>
 
           <IconButton
               color="inherit"
-              disabled={!(location.pathname === "/")}
               onClick={onFocusClick}>
               { focused? <CenterFocusStrongIcon/> : <CenterFocusWeakIcon/> }
           </IconButton>
@@ -101,7 +95,6 @@ export const TWAppBar = () => {
             sx={{ mr: 1 }}
           />
           <Slider value={volume}
-              disabled={!(location.pathname === "/")}
               onChange={onVolumeChange}
               min={0}
               max={100}

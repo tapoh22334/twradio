@@ -1,7 +1,7 @@
 import React from "react";
 import "./App.css";
 
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 
 import { invoke } from "@tauri-apps/api";
 import { listen, emit } from "@tauri-apps/api/event";
@@ -56,6 +56,15 @@ function App() {
       scrollToFocus(focusTweetId);
     }
   }, [focusTweetId, focused]);
+
+  const location = useLocation();
+  React.useEffect(() => {
+    if (location.pathname === "/") {
+      if (focused) {
+        scrollToFocus(focusTweetId);
+      }
+    }
+  }, [location]);
 
   React.useEffect(() => {
     listen("tauri://frontend/token-register", (event) => {
@@ -137,7 +146,6 @@ function App() {
 
   return (
     <Box className="App">
-      <BrowserRouter>
         <Toolbar />
 
         <Box sx={{ display: "flex" }}>
@@ -164,7 +172,6 @@ function App() {
             <RightFoot />
           </Box>
         </Box>
-      </BrowserRouter>
     </Box>
   );
 }

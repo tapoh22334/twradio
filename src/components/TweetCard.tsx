@@ -136,25 +136,33 @@ const TweetLiText: React.FC<TweetLiProps> = (props) => {
 }
 
 export const TweetLi: React.FC<TweetLiProps> = (props) => {
-  if (props.focus) {
-      return (
-          <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px", border: "1px solid #6c757d", borderRadius: "8px"}}>
+    return (
+          <ListItem id={props.tweet_id}  alignItems="flex-start" sx={{margin: "4px"}}>
             <ListItemAvatar>
               <Avatar src={props.profile_image_url} />
             </ListItemAvatar>
             <TweetLiText {...props} />
           </ListItem>
+          );
+  //if (props.focus) {
+  //    return (
+  //        <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px", border: "1px solid #6c757d", borderRadius: "8px"}}>
+  //          <ListItemAvatar>
+  //            <Avatar src={props.profile_image_url} />
+  //          </ListItemAvatar>
+  //          <TweetLiText {...props} />
+  //        </ListItem>
 
-      );
-  } else {
-      return (
-          <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px"}}>
-            <ListItemAvatar>
-              <Avatar src={props.profile_image_url} />
-            </ListItemAvatar>
-            <TweetLiText {...props} />
-          </ListItem>
+  //    );
+  //} else {
+  //    return (
+  //        <ListItem id={props.tweet_id} alignItems="flex-start" sx={{margin: "4px"}}>
+  //          <ListItemAvatar>
+  //            <Avatar src={props.profile_image_url} />
+  //          </ListItemAvatar>
+  //          <TweetLiText {...props} />
+  //        </ListItem>
 
-      );
-  }
+  //    );
+  //}
 }
