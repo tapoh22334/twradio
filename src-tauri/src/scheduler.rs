@@ -12,6 +12,7 @@ const HISTORY_LENGTH: usize = 1024;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
     pub tweet_id: String,
+    pub author_id: String,
     pub created_at: String,
     pub text: String,
     pub name: String,
@@ -48,6 +49,7 @@ pub fn into(tweet: &serde_json::Value, users: &Vec<serde_json::Value>, medias: &
 
     Record {
         tweet_id: tweet["id"].as_str().unwrap().to_string(),
+        author_id: tweet["author_id"].as_str().unwrap().to_string(),
         created_at: tweet["created_at"].as_str().unwrap().to_string(),
         text: tweet["text"].as_str().unwrap().to_string(),
         name: user["name"].as_str().unwrap().to_string(),

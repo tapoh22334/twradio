@@ -123,7 +123,8 @@ pub fn start(
                     since_id_string = tweet["id"].as_str().unwrap().to_string();
                     since_id = Some(since_id_string.as_str());
 
-                    let record: scheduler::Record = scheduler::into(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap());
+                    let empty_vec = Vec::new();
+                    let record: scheduler::Record = scheduler::into(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec));
                     tweet_tx.send(record).await.unwrap();
                 }
             }

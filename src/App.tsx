@@ -21,6 +21,7 @@ import Box from "@mui/material/Box";
 
 type ViewElements = {
   tweet_id: string;
+  author_id: string;
   created_at: string;
   text: string;
   name: string;
@@ -86,6 +87,7 @@ function App() {
       const data: ViewElements = event.payload;
       tweetList.push({
         tweet_id: data.tweet_id,
+        author_id: data.author_id,
         username: data.name,
         user_id: data.username,
         time: data.created_at,

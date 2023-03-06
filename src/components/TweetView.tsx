@@ -22,6 +22,7 @@ export const TweetView = ({tweets}: {tweets: Array<TweetProps>} ) => {
                          <React.Fragment>
                             <TweetLi
                                 tweet_id={row.tweet_id}
+                                author_id={row.author_id}
                                 username={row.username}
                                 user_id={row.user_id}
                                 time={row.time}

@@ -6,6 +6,7 @@ use tauri::Manager;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ViewElements {
     pub tweet_id: String,
+    pub author_id: String,
     pub created_at: String,
     pub text: String,
     pub name: String,
@@ -25,6 +26,7 @@ impl From<scheduler::Record> for ViewElements {
     fn from(record: scheduler::Record) -> Self {
         ViewElements {
             tweet_id: record.tweet_id,
+            author_id: record.author_id,
             created_at: record.created_at,
             text: record.text,
             name: record.name,

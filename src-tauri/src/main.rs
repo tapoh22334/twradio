@@ -6,6 +6,7 @@
 mod audio_player;
 mod display_bridge;
 mod scheduler;
+mod open_browser_listener;
 mod twitter_agent;
 mod twitter_authorizator;
 mod twitter_client;
@@ -202,6 +203,9 @@ async fn main() -> std::io::Result<()> {
                     let _ = tick_tx.send(audio_player::AudioControl::Tick).await;
                 }
             });
+
+            // open_browser_listener
+            open_browser_listener::start(app_handle);
 
             Ok(())
         })

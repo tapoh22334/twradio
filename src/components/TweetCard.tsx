@@ -1,5 +1,7 @@
 import './TweetCard.css';
 
+import { emit } from "@tauri-apps/api/event";
+
 import * as React from 'react';
 import ListItem from '@mui/material/ListItem';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
@@ -13,6 +15,7 @@ import ImageListItem from '@mui/material/ImageListItem';
 
 export type TweetProps = {
     tweet_id: string,
+    author_id: string,
     username: string,
     user_id: string,
     time: string,
@@ -23,6 +26,7 @@ export type TweetProps = {
 
 export type TweetLiProps = {
     tweet_id: string,
+    author_id: string,
     username: string,
     user_id: string,
     time: string,
@@ -64,9 +68,16 @@ const format_time = (utc: string) => {
     return res;
 }
 
+const emit_open_browser = (author_id: string, tweet_id: string) => {
+    let url = 'http://twitter.com/' + author_id + '/status/' + tweet_id;
+    console.log(url);
+    emit("tauri://backend/open_browser", {"url": url});
+}
+
 const TweetLiText: React.FC<TweetLiProps> = (props) => {
     return (
         <ListItemText
+          onClick={ () => { emit_open_browser( props.author_id, props.tweet_id ) } }
           primary={
             <React.Fragment>
 
