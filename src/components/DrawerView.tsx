@@ -22,6 +22,11 @@ export const Drawer = () => {
     //invoke('set_paused', {paused: false});
   }
 
+  const onSearchClick = () => {
+    //setPaused(false);
+    //invoke('set_paused', {paused: false});
+  }
+
   const onSettingsClick = () => {
     //setPaused(true);
     //invoke('set_paused', {paused: true});
@@ -51,6 +56,22 @@ export const Drawer = () => {
             <AbcIcon />
           </ListItemIcon>
           <ListItemText primary='Timeline' />
+        </ListItemButton>
+      </ListItem>
+      </Link>
+
+      <Divider />
+
+      <Link style={{ textDecoration: 'none' }} to="search">
+      <ListItem
+        key='Search'
+        disablePadding
+        >
+        <ListItemButton onClick={onSearchClick}>
+          <ListItemIcon>
+            <AbcIcon />
+          </ListItemIcon>
+          <ListItemText primary='Search' />
         </ListItemButton>
       </ListItem>
       </Link>

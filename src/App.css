@@ -4,7 +4,7 @@
     --appbar-height: 56px; 
     --footer-height: 48px;
     --drawer-width: 180px;
-
+    --body-height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height));
 }
 
 html {

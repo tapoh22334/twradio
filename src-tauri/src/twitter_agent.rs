@@ -1,4 +1,5 @@
 use twitter_v2::authorization::Oauth2Token;
+use serde::{Deserialize, Serialize};
 
 use crate::scheduler;
 use crate::twitter_authorizator;
@@ -10,6 +11,12 @@ use tauri::Manager;
 const QUEUE_LENGTH: usize = 1;
 const REQUEST_PERIOD: u64 = 10000; // milliseconds
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Timeline {
+    User,
+    Search {query: String},
+}
+
 fn emit_clear_error(
         app_handle: &tauri::AppHandle,
     ) {
@@ -20,18 +27,6 @@ fn emit_clear_error(
 
     app_handle
         .emit_all("tauri://frontend/other-error", "")
-        .unwrap();
-}
-
-fn emit_error_authorization_failed(
-        app_handle: &tauri::AppHandle,
-    ) {
-
-    app_handle
-        .emit_all(
-            "tauri://frontend/authorization-failed",
-            "ログアウトし再度Twitterにログインしてください",
-            )
         .unwrap();
 }
 
@@ -47,89 +42,258 @@ fn emit_error_other(
         .unwrap();
 }
 
+async fn request_search_timeline(
+                        app_handle: &tauri::AppHandle,
+                        ctx: &mut SearchTimelineContext,
+                        token_opt: &mut Option<Oauth2Token>,
+                        ) -> Vec<scheduler::Record>
+{
+
+    let mut ret: Vec::<scheduler::Record> = vec![];
+    let mut tweets =
+        match twitter_client::request_search(&token_opt.clone().unwrap(),
+                                                ctx.query_opt.as_ref().unwrap().as_str(),
+                                                ctx.since_id_opt.as_ref().map(|s| s.as_str())).await {
+            Ok(t) => {
+                emit_clear_error(&app_handle);
+                t
+            }
+
+            Err(e) => match e {
+                twitter_client::RequestError::Unauthorized => {
+                    println!("twitter_agent: unauthorized {:?}", e);
+
+                    *token_opt = None;
+                    return vec![];
+                }
+
+                twitter_client::RequestError::Unknown(msg) => {
+                    println!("twitter_agent: unknown {:?}", msg);
+
+                    emit_error_other(&app_handle);
+
+                    return vec![];
+                }
+            },
+        };
+
+    if tweets["meta"]["result_count"].as_u64().unwrap() > 0 {
+        println!("{:?}", tweets);
+
+        let users = tweets["includes"]["users"].clone();
+        let media = tweets["includes"]["media"].clone();
+
+        let mut rev_data = tweets["data"].as_array_mut().unwrap();
+        rev_data.reverse();
+        for tweet in rev_data {
+            ctx.since_id_opt = Some(tweet["id"].as_str().unwrap().to_string());
+
+            let empty_vec = Vec::new();
+            let record: scheduler::Record = scheduler::into(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec));
+            ret.push(record)
+        }
+    }
+
+    ret
+}
+
+async fn request_user_timeline(
+                        app_handle: &tauri::AppHandle,
+                        usrctx: &mut UserTimelineContext,
+                        token_opt: &mut Option<Oauth2Token>,
+                        ) -> Vec<scheduler::Record>
+{
+
+    println!("user_id_opt {:?}", usrctx.user_id_opt);
+    if usrctx.user_id_opt.is_none() {
+        usrctx.user_id_opt = match twitter_client::request_user_id(&token_opt.clone().unwrap()).await {
+            Ok(t) => {
+                Some(t)
+            }
+            Err(e) => match e { 
+                twitter_client::RequestError::Unauthorized => {
+                    println!("twitter_agent: user id error unauthorized  {:?}", e);
+
+                    *token_opt = None;
+                    return vec![];
+                }
+
+                twitter_client::RequestError::Unknown(msg) => {
+                    println!("twitter_agent: user id error unknown  {:?}", msg);
+
+                    emit_error_other(&app_handle);
+                    return vec![];
+                }
+            }
+        };
+    }
+
+    println!("user_id_opt {:?}", usrctx.user_id_opt);
+
+    let mut ret: Vec::<scheduler::Record> = vec![];
+    if usrctx.user_id_opt.is_some() {
+        let mut tweets =
+            match twitter_client::request_tweet_new(&token_opt.clone().unwrap(), usrctx.user_id_opt.clone().unwrap().as_str(), usrctx.since_id_opt.as_ref().map(|s| s.as_str())).await {
+                //let tweets = match twitter_client::request_user_timeline(&token, user_id.as_str(), start_time).await {
+                Ok(t) => {
+                    emit_clear_error(&app_handle);
+                    t
+                }
+
+                Err(e) => match e {
+                    twitter_client::RequestError::Unauthorized => {
+                        println!("twitter_agent: unauthorized {:?}", e);
+
+                        *token_opt = None;
+                        return vec![];
+                    }
+
+                    twitter_client::RequestError::Unknown(msg) => {
+                        println!("twitter_agent: unknown {:?}", msg);
+
+                        emit_error_other(&app_handle);
+
+                        return vec![];
+                    }
+                },
+            };
+
+        if tweets["meta"]["result_count"].as_u64().unwrap() > 0 {
+            println!("{:?}", tweets);
+
+            let users = tweets["includes"]["users"].clone();
+            let media = tweets["includes"]["media"].clone();
+
+            let mut rev_data = tweets["data"].as_array_mut().unwrap();
+            rev_data.reverse();
+            for tweet in rev_data {
+                usrctx.since_id_opt = Some(tweet["id"].as_str().unwrap().to_string());
+
+                let empty_vec = Vec::new();
+                let record: scheduler::Record = scheduler::into(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec));
+                ret.push(record)
+            }
+        }
+    }
+
+    ret
+}
+
+struct SearchTimelineContext {
+    query_opt: Option<String>,
+    since_id_opt: Option<String>
+}
+
+impl SearchTimelineContext {
+    pub fn new() -> Self {
+        Self {
+            query_opt: Some("#Twitter".to_string()),
+            since_id_opt: None,
+        }
+    }
+}
+
+struct UserTimelineContext {
+    user_id_opt: Option<String>,
+    since_id_opt: Option<String>
+}
+
+impl UserTimelineContext {
+    pub fn new() -> Self {
+        Self {
+            user_id_opt: None,
+            since_id_opt: None,
+        }
+    }
+}
+
+
 pub fn start(
     app_handle: tauri::AppHandle,
     authctl_tx: tokio::sync::mpsc::Sender<twitter_authorizator::AuthControl>,
     mut token_rx: tokio::sync::mpsc::Receiver<Oauth2Token>,
-) -> tokio::sync::mpsc::Receiver<scheduler::Record> {
+    mut timeline_rx: tokio::sync::mpsc::Receiver<Timeline>,
+) -> tokio::sync::mpsc::Receiver<(Timeline, scheduler::Record)> {
+
     let (tweet_tx, tweet_rx) = tokio::sync::mpsc::channel(QUEUE_LENGTH);
 
+    // Operating clock
+    let (clk_tx, mut clk_rx) = tokio::sync::mpsc::channel::<()>(1);
     tokio::spawn(async move {
-        let mut token = token_rx.recv().await.unwrap();
-
-        let user_id = match twitter_client::request_user_id(&token).await {
-            Ok(t) => {
-                t
-            }
-            Err(e) => { 
-                println!("twitter_agent: user id error {:?}", e);
-                "".to_string()
-            }
-        };
-
-        let mut since_id: Option<&str> = None;
-        let mut since_id_string;
-
         loop {
-            let mut tweets =
-                match twitter_client::request_tweet_new(&token, user_id.as_str(), since_id).await {
-                    //let tweets = match twitter_client::request_user_timeline(&token, user_id.as_str(), start_time).await {
-                    Ok(t) => {
-                        emit_clear_error(&app_handle);
-                        t
+            let _ = clk_tx.send(()).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
+        }
+    });
+
+    tokio::spawn(async move {
+        let mut token_opt: Option<Oauth2Token> = None;
+        let mut usrctx: UserTimelineContext = UserTimelineContext::new();
+        let mut search_ctx: SearchTimelineContext = SearchTimelineContext::new();
+        let mut timeline: Timeline = Timeline::User;
+
+        token_opt = Some(token_rx.recv().await.unwrap());
+        loop {
+            tokio::select! {
+                Some(t) = token_rx.recv() => {
+                    token_opt = Some(t);
+                }
+
+                Some(_) = clk_rx.recv() => {
+                    println!("clk_rx");
+                    if token_opt.is_none() {
+                        continue;
                     }
 
-                    Err(e) => match e {
-                        twitter_client::RequestError::Unauthorized => {
-                            println!("twitter_agent: unauthorized {:?}", e);
+                    match timeline {
+                        Timeline::User => {
+                            let records = request_user_timeline(&app_handle, &mut usrctx, &mut token_opt).await;
+                            //let records = request_search_timeline(&app_handle, &mut search_ctx, &mut token_opt).await;
+                            if token_opt.is_none() {
+                                authctl_tx
+                                    .send(twitter_authorizator::AuthControl::Authorize)
+                                    .await
+                                    .unwrap();
 
-                            authctl_tx
-                                .send(twitter_authorizator::AuthControl::Authorize)
-                                .await
-                                .unwrap();
-                            token = token_rx.recv().await.unwrap();
+                                continue;
+                            }
 
-                            emit_error_authorization_failed(&app_handle);
-
-                            tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD))
-                                .await;
-                            continue;
+                            for r in records {
+                                tweet_tx.send((Timeline::User, r)).await.unwrap();
+                            }
                         }
 
-                        twitter_client::RequestError::Unknown(msg) => {
-                            println!("twitter_agent: unknown {:?}", msg);
- 
-                            emit_error_other(&app_handle);
+                        Timeline::Search{ref query} => {
+                            println!("twitter_agent: {:?}", query);
+                            if search_ctx.query_opt.clone().is_none()
+                                || search_ctx.query_opt.clone().unwrap() != query.to_string() {
+                                search_ctx = SearchTimelineContext::new();
+                                search_ctx.query_opt = Some(query.clone());
+                            }
 
-                            tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD))
-                                .await;
-                            continue;
+                            let records = request_search_timeline(&app_handle, &mut search_ctx, &mut token_opt).await;
+                            //let records = request_search_timeline(&app_handle, &mut search_ctx, &mut token_opt).await;
+                            if token_opt.is_none() {
+                                authctl_tx
+                                    .send(twitter_authorizator::AuthControl::Authorize)
+                                    .await
+                                    .unwrap();
+
+                                continue;
+                            }
+
+                            for r in records {
+                                tweet_tx.send((Timeline::Search{query: query.to_string()}, r)).await.unwrap();
+                            }
                         }
-                    },
-                };
+                    }
+                }
 
-            if tweets["meta"]["result_count"] == 0 {
-                println!("twitter_agent: no data returned");
-
-            } else {
-                println!("{:?}", tweets);
-
-                let users = tweets["includes"]["users"].clone();
-                let media = tweets["includes"]["media"].clone();
-
-                let mut rev_data = tweets["data"].as_array_mut().unwrap();
-                rev_data.reverse();
-                for tweet in rev_data {
-                    since_id_string = tweet["id"].as_str().unwrap().to_string();
-                    since_id = Some(since_id_string.as_str());
-
-                    let empty_vec = Vec::new();
-                    let record: scheduler::Record = scheduler::into(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec));
-                    tweet_tx.send(record).await.unwrap();
+                Some(tl) = timeline_rx.recv() => {
+                    println!("timeline: {:?}", tl);
+                    timeline = tl;
                 }
             }
-
-            tokio::time::sleep(tokio::time::Duration::from_millis(REQUEST_PERIOD)).await;
         }
     });
 

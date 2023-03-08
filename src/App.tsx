@@ -11,6 +11,7 @@ import { AppContext } from "./AppContext";
 import { Licenses } from "./components/LicenseView";
 import { Drawer } from "./components/DrawerView";
 import { TweetView } from "./components/TweetView";
+import { SearchView } from "./components/SearchView";
 import { Settings } from "./components/SettingsView";
 import { TWAppBar } from "./components/TWAppBar";
 import { LeftFoot } from "./components/LeftFootVlew";
@@ -34,18 +35,22 @@ function App() {
   const {
     focusTweetIdPair,
     tweetListPair,
+    searchTweetListPair,
     focusedPair,
     speechRatePair,
   } = React.useContext(AppContext);
 
   const [focusTweetId, setFocusTweetId] = focusTweetIdPair;
   const [tweetList, setTweetList] = tweetListPair;
+  const [searchTweetList, setSearchTweetList] = searchTweetListPair;
   const [focused, setFocused] = focusedPair;
   const [speechRate, setSpeechRate] = speechRatePair;
 
   const scrollToFocus = (twid: string) => {
     const targetEl = document.getElementById(twid);
-    if (targetEl && window.location.pathname === "/") {
+    if (targetEl
+        && window.location.pathname === "/"
+        || window.location.pathname === "search") {
       targetEl?.scrollIntoView({ behavior: "smooth" });
       console.log(twid);
     }
@@ -60,9 +65,15 @@ function App() {
   const location = useLocation();
   React.useEffect(() => {
     if (location.pathname === "/") {
+        invoke("set_timeline", {"timeline": "User"} );
+    }
+
+    if (location.pathname === "/" ||
+        location.pathname === "search") {
       if (focused) {
         scrollToFocus(focusTweetId);
       }
+
     }
   }, [location]);
 
@@ -158,6 +169,7 @@ function App() {
           <Box className="Body">
             <Routes>
               <Route path={`/`} element={<TweetView tweets={tweetList} />} />
+              <Route path={`search`} element={<SearchView tweets={searchTweetList} />} />
               <Route path={`settings`} element={<Settings />} />
               <Route path={`licenses`} element={<Licenses />} />
             </Routes>

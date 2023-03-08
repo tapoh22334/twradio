@@ -10,6 +10,7 @@ import { listen } from "@tauri-apps/api/event";
 type AppContextType = {
   focusTweetIdPair: [string, React.Dispatch<string>];
   tweetListPair: [Array<TweetProps>, React.Dispatch<Array<TweetProps>>];
+  searchTweetListPair: [Array<TweetProps>, React.Dispatch<Array<TweetProps>>];
   pausedPair: [boolean, React.Dispatch<boolean>];
   focusedPair: [boolean, React.Dispatch<boolean>];
   speakerPair: [string, React.Dispatch<string>];
@@ -22,6 +23,7 @@ export const AppContext = createContext({} as AppContextType);
 export const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [focusTwid, setFocusTwid] = React.useState<string>("");
   const [tweetList, setTweetList] = React.useState<Array<TweetProps>>([]);
+  const [searchTweetList, setSearchTweetList] = React.useState<Array<TweetProps>>([]);
   const [paused, setPaused] = React.useState(false);
   const [focused, setFocused] = React.useState(true);
 
@@ -88,6 +90,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
       value={{
         focusTweetIdPair: [focusTwid, setFocusTwid],
         tweetListPair: [tweetList, setTweetList],
+        searchTweetListPair: [searchTweetList, setSearchTweetList],
         pausedPair: [paused, setPaused],
         focusedPair: [focused, setFocused],
         speakerPair: [speaker, setSpeaker],

@@ -1,7 +1,6 @@
 use tauri::Manager;
 use serde::{Deserialize, Serialize};
 
-// the payload type must implement `Serialize` and `Clone`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Payload {
   url: String,

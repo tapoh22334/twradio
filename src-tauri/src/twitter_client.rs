@@ -152,6 +152,62 @@ pub async fn request_tweet_new(
     Ok(timeline)
 }
 
+pub async fn request_search(
+    token: &Oauth2Token,
+    query: &str,
+    since_id: Option<&str>,
+) -> Result<serde_json::Value, RequestError> {
+    let client = reqwest::Client::new();
+    let auth_val = format!("Bearer {}", token.access_token().secret());
+
+    let mut query = [
+        ("query", query),
+        ("expansions", "author_id,attachments.media_keys"),
+        ("user.fields", "profile_image_url"),
+        ("tweet.fields", "created_at"),
+        ("media.fields", "preview_image_url,type,url"),
+        ("max_results", "25"),
+    ]
+    .to_vec();
+
+    match since_id {
+        Some(s) => { query.push(("since_id", s)); }
+        None => {}
+    };
+
+    let url = base_url()
+        .join(format!("tweets/search/recent").as_str())
+        .unwrap();
+    let timeline = client
+        .get(url)
+        .header(reqwest::header::AUTHORIZATION, auth_val.clone())
+        .query(&query)
+        .send()
+        .await
+        .map_err(|e| RequestError::Unknown(e.to_string()))?;
+
+    let timeline = match timeline.status() {
+        reqwest::StatusCode::OK => {
+            let timeline = timeline.text().await.unwrap();
+
+            println!("twitter_client: {:?}", timeline);
+            serde_json::from_str::<serde_json::Value>(timeline.as_str()).unwrap()
+        }
+
+        reqwest::StatusCode::UNAUTHORIZED => {
+            return Err(RequestError::Unauthorized);
+        }
+
+        _ => {
+            let timeline = timeline.text().await.unwrap();
+            println!("twitter_client: {:?}", timeline);
+            //return Err(RequestError::Unknown(timeline.status().to_string()));
+            return Err(RequestError::Unknown(timeline));
+        }
+    };
+
+    Ok(timeline)
+}
 //pub async fn request_tweet_next(token: &Oauth2Token, user_id: &str, next_token: &str) -> Result<twitter_data::TweetsResponse, reqwest::Error> {
 //    let client = reqwest::Client::new();
 //    let auth_val = format!("Bearer {}", token.access_token().secret());

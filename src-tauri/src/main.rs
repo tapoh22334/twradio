@@ -37,6 +37,22 @@ async fn setup_app(
 }
 
 #[tauri::command]
+async fn set_timeline(
+    timeline: twitter_agent::Timeline,
+    state: tauri::State<
+        '_,
+        tokio::sync::Mutex<tokio::sync::mpsc::Sender<twitter_agent::Timeline>>,
+    >,
+) -> Result<(), ()> {
+    let tx = state.lock().await;
+
+    println!("tauri://backend/timeline {:?}", timeline);
+    tx.send(timeline).await.unwrap();
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn set_paused(
     paused: bool,
     state: tauri::State<
@@ -137,7 +153,6 @@ async fn main() -> std::io::Result<()> {
 
     let (authctl_tx, authctl_rx) =
         tokio::sync::mpsc::channel::<twitter_authorizator::AuthControl>(1);
-    let authctl_tx_c = authctl_tx.clone();
 
     let (display_tx, display_rx) =
         tokio::sync::mpsc::channel::<display_bridge::DisplayContrl>(QUEUE_LENGTH);
@@ -146,9 +161,10 @@ async fn main() -> std::io::Result<()> {
 
     let (speech_tx, speech_rx) = tokio::sync::mpsc::channel::<Option<voicegen_agent::Speech>>(1);
 
+    let (timeline_tx, timeline_rx) = tokio::sync::mpsc::channel::<twitter_agent::Timeline>(1);
+
     let (audioctl_tx, audioctl_rx) =
         tokio::sync::mpsc::channel::<audio_player::AudioControl>(QUEUE_LENGTH);
-    let audioctl_tx_c = audioctl_tx.clone();
 
     let (audioctl_rdy_tx, audioctl_rdy_rx) =
         tokio::sync::mpsc::channel::<audio_player::AudioControlRdy>(1);
@@ -156,6 +172,9 @@ async fn main() -> std::io::Result<()> {
     let (user_tx, user_rx) = tokio::sync::mpsc::channel::<user_input::UserInput>(QUEUE_LENGTH);
 
     println!("twitter_authorizator::start");
+
+    let authctl_tx_c = authctl_tx.clone();
+    let audioctl_tx_c = audioctl_tx.clone();
 
     tauri::Builder::default()
         .setup(move |app| {
@@ -171,7 +190,10 @@ async fn main() -> std::io::Result<()> {
             let token_rx = twitter_authorizator::start(app_handle.clone(), authctl_rx);
 
             println!("twitter_agent::start");
-            let tweet_rx = twitter_agent::start(app_handle.clone(), authctl_tx_c, token_rx);
+            let tweet_rx = twitter_agent::start(app_handle.clone(),
+                                                authctl_tx.clone(),
+                                                token_rx,
+                                                timeline_rx);
 
             println!("voicegen_observer::start");
             voicegen_observer::start(app_handle.clone());
@@ -179,11 +201,11 @@ async fn main() -> std::io::Result<()> {
             println!("scheduler::start");
             scheduler::start(
                 app_handle.clone(),
-                tweet_rx,
                 display_tx.clone(),
                 playbook_tx.clone(),
-                speech_rx,
                 audioctl_tx.clone(),
+                tweet_rx,
+                speech_rx,
                 audioctl_rdy_rx,
                 user_rx,
             );
@@ -209,12 +231,14 @@ async fn main() -> std::io::Result<()> {
 
             Ok(())
         })
-        .manage(tokio::sync::Mutex::new(authctl_tx))
+        .manage(tokio::sync::Mutex::new(authctl_tx_c))
         .manage(tokio::sync::Mutex::new(audioctl_tx_c))
         .manage(tokio::sync::Mutex::new(user_tx))
+        .manage(tokio::sync::Mutex::new(timeline_tx))
         .invoke_handler(tauri::generate_handler![
             setup_app,
             set_paused,
+            set_timeline,
             set_volume,
             set_speaker,
             set_speech_rate,

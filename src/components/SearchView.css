@@ -1,0 +1,13 @@
+:root {
+    --search-height: 58px;
+}
+
+.SearchBar {
+  overflow: hidden;
+}
+
+.SearchBody {
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: calc(var(--canvas-height) - var(--appbar-height) - var(--footer-height) - var(--search-height));
+}
