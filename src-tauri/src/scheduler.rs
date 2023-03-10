@@ -93,10 +93,17 @@ impl Settings {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum TTSState {
+    Waiting,
+    Processing,
+    Canceling,
+}
+
+
 struct Context {
-    pub forcus_position_initialized: bool,
-    pub cancelling: bool,
-    pub tts_processing: bool,
+    pub name: String,
+    pub forcus_id: Option<String>,
     pub wait_list: LinkedList<Record>,
     pub ready_list: LinkedList<Record>,
     pub played_list: LinkedList<Record>,
@@ -104,11 +111,10 @@ struct Context {
 }
 
 impl Context {
-    pub fn new() -> Self {
+    pub fn new(name: String) -> Self {
         Self {
-            forcus_position_initialized: false,
-            cancelling: false,
-            tts_processing: false,
+            name,
+            forcus_id: None,
             wait_list: LinkedList::<Record>::new(),
             ready_list: LinkedList::<Record>::new(),
             played_list: LinkedList::<Record>::new(),
@@ -120,37 +126,20 @@ impl Context {
         self.wait_list.push_back(msg.clone());
     }
 
-    pub fn is_tts_ready(&self) -> bool {
-        self.wait_list.len() > 0
-            && !self.tts_processing
-            && !self.cancelling
-    }
-
     pub fn fetch_for_tts(&mut self) -> Record {
-        self.tts_processing = true;
         self.wait_list.front().unwrap().clone()
     }
 
-    pub fn cancelling(&self) -> bool {
-        self.cancelling
-    }
-
-    pub fn cancel(&mut self) {
-        self.cancelling = false;
-    }
-
-    pub fn tts_complete(&mut self, tts_result: Option<voicegen_agent::Speech>) {
+    pub fn add_tss_result(&mut self, tts_result: Option<voicegen_agent::Speech>) {
         match tts_result {
             Some(tts_result) => {
                 println!("Text to speech is complete {:?}", tts_result.tweet_id);
 
-                self.tts_processing = false;
                 self.ready_list.push_back(self.wait_list.pop_front().unwrap());
                 self.speech_cache.push_back(tts_result);
             }
             None => {
                 println!("Text to speech is failed ");
-                self.tts_processing = false;
             }
         }
     }
@@ -162,9 +151,8 @@ impl Context {
     pub fn fetch_for_playback(&mut self) -> (voicegen_agent::Speech, Option<String>){
         let mut overflow_id: Option<String> = None;
         let target_tw = self.ready_list.pop_front().unwrap();
-        let target_twid = target_tw.tweet_id.clone();
 
-        let index = self.speech_cache.iter().position(|x| x.tweet_id == target_twid).unwrap();
+        let index = self.speech_cache.iter().position(|x| x.tweet_id == target_tw.tweet_id).unwrap();
         let speech = remove(&mut self.speech_cache, index);
 
         self.played_list.push_back(target_tw);
@@ -177,10 +165,6 @@ impl Context {
     }
 
     pub fn jump_to_twid(&mut self, twid: &String) -> Vec<String> {
-        if self.tts_processing {
-            self.cancelling = true;
-        }
-
         let p = self.wait_list.iter().position(|x| x.tweet_id == *twid);
         if p.is_some() {
             self.played_list.append(&mut self.ready_list);
@@ -190,7 +174,6 @@ impl Context {
             self.played_list.append(&mut self.wait_list);
             self.wait_list = tail;
 
-            self.tts_processing = false;
             self.speech_cache.clear();
         }
 
@@ -202,7 +185,6 @@ impl Context {
 
             self.ready_list = tail;
 
-            self.tts_processing = false;
             let tail = self.speech_cache.split_off(p.unwrap());
             self.speech_cache = tail;
         }
@@ -216,11 +198,30 @@ impl Context {
         drop_list
     }
 
-    pub fn remove_cache(&mut self) {
-        if self.tts_processing {
-            self.tts_processing = false;
-            self.cancelling = true;
+    pub fn drop_all(&mut self) -> Vec<String> {
+        let mut drop_list : Vec<String> = vec![];
+
+        self.speech_cache.split_off(0);
+
+        while self.wait_list.len() > 0 {
+            let ve = self.wait_list.pop_front().unwrap();
+            drop_list.push(ve.tweet_id);
         }
+
+        while self.ready_list.len() > 0 {
+            let ve = self.ready_list.pop_front().unwrap();
+            drop_list.push(ve.tweet_id);
+        }
+
+        while self.played_list.len() > 0 {
+            let ve = self.played_list.pop_front().unwrap();
+            drop_list.push(ve.tweet_id);
+        }
+
+        drop_list
+    }
+
+    pub fn remove_cache(&mut self) {
         if self.ready_list.len() > 0 {
             self.ready_list.append(&mut self.wait_list);
             self.wait_list = self.ready_list.split_off(0);
@@ -242,7 +243,11 @@ pub fn start(
     mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>,
 ) {
     // Context
-    let mut ctx = Context::new();
+    let mut current_tl_view = twitter_agent::Timeline::User;
+    let mut current_search_tl = twitter_agent::Timeline::Search{query: "".to_string()};
+    let mut ctx_user = Context::new("user".to_string());
+    let mut ctx_search = Context::new("search".to_string());
+    let mut tts_state = TTSState::Waiting;
     let mut settings = Settings::new();
 
     // Operating clock
@@ -255,8 +260,22 @@ pub fn start(
     });
 
     tokio::spawn(async move {
+        let mut ctx = &mut ctx_user;
+
         loop {
             println!("");
+            println!(
+                "current_search_tl: {:?}",
+                current_search_tl
+            );
+            println!(
+                "current_tl_view: {:?}",
+                current_tl_view
+            );
+            println!(
+                "tts_state: {:?}",
+                tts_state,
+            );
             println!(
                 "setting: {:?}, {:?}, {:?}, {:?}",
                 settings.addr,
@@ -265,13 +284,14 @@ pub fn start(
                 settings.paused,
             );
             println!(
-                "ctx: {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
+                "ctx: {:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?}",
+                ctx.name,
+                ctx.forcus_id,
                 ctx.wait_list.len(),
                 ctx.ready_list.len(),
                 ctx.played_list.len(),
                 ctx.speech_cache.len(),
-                ctx.cancelling,
-                ctx.tts_processing
+                tts_state,
             );
 
             print!("scheduler: Select> ");
@@ -285,12 +305,41 @@ pub fn start(
                                 println!("New tweet incoming {:?}", tl);
                                 println!("New tweet incoming {:?}", msg.tweet_id);
 
-                                ctx.add_new_tweet(&msg);
-                                display_tx.send(display_bridge::DisplayContrl::Add(msg.clone().into())).await.unwrap();
+                                match tl.clone() {
+                                    twitter_agent::Timeline::User => {
+                                    }
 
-                                if !ctx.forcus_position_initialized {
-                                    display_tx.send(display_bridge::DisplayContrl::Scroll(msg.tweet_id)).await.unwrap();
-                                    ctx.forcus_position_initialized = true;
+                                    twitter_agent::Timeline::Search {query} => {
+                                        if tl != current_search_tl {
+                                            println!("scheduler: drop all");
+                                            audioctl_tx.send(audio_player::AudioControl::Stop).await.unwrap();
+                                            ctx.forcus_id = None;
+
+                                            for id in ctx.drop_all() {
+                                                display_tx.send(display_bridge::DisplayContrl::Delete(ctx.name.clone(), id)).await.unwrap();
+                                            }
+
+                                            current_search_tl = tl.clone();
+                                        }
+                                    }
+                                }
+
+                                ctx = match tl {
+                                    twitter_agent::Timeline::User => { &mut ctx_user }
+                                    twitter_agent::Timeline::Search {query} => { &mut ctx_search }
+                                };
+
+                                display_tx.send(display_bridge::DisplayContrl::Add(ctx.name.clone(), msg.clone().into())).await.unwrap();
+                                ctx.add_new_tweet(&msg);
+
+                                ctx = match current_tl_view.clone() {
+                                    twitter_agent::Timeline::User => { &mut ctx_user }
+                                    twitter_agent::Timeline::Search {query} => { &mut ctx_search }
+                                };
+
+                                if ctx.forcus_id.is_none() {
+                                    ctx.forcus_id = Some(msg.tweet_id);
+                                    display_tx.send(display_bridge::DisplayContrl::Scroll(ctx.name.clone(), ctx.forcus_id.as_ref().unwrap().clone())).await.unwrap();
                                 }
                             }
 
@@ -308,9 +357,10 @@ pub fn start(
                     }
 
                     // TTS Start
-                    if ctx.is_tts_ready() {
+                    if ctx.wait_list.len() > 0 && tts_state == TTSState::Waiting {
+                        tts_state = TTSState::Processing;
                         let r = ctx.fetch_for_tts();
-                        println!("<clk>start tts_processing {:?}", r.tweet_id);
+                        println!("<clk>start processing {:?}", r.tweet_id);
 
                         playbook_tx.send(
                             voicegen_agent::into(r, settings.addr, settings.speaker, settings.speech_rate)
@@ -321,13 +371,13 @@ pub fn start(
                     // Process TTS Result
                     match speech_rx.try_recv() {
                         Ok(speech) => {
-                            if ctx.cancelling() {
-                                // Ignore processing result. if the cancelling state
+                            if tts_state != TTSState::Canceling {
+                                ctx.add_tss_result(speech);
+                            } else {
                                 println!("tts result is ignored");
-                                ctx.cancel();
-                                continue;
                             }
-                            ctx.tts_complete(speech);
+
+                            tts_state = TTSState::Waiting;
                         },
 
                         Err(e) => {
@@ -353,9 +403,11 @@ pub fn start(
                                 audioctl_tx.send(audio_player::AudioControl::PlayMulti(voice_pack)).await.unwrap();
 
                                 if let Some(twid) = overflow {
-                                    display_tx.send(display_bridge::DisplayContrl::Delete(twid)).await.unwrap();
+                                    display_tx.send(display_bridge::DisplayContrl::Delete(ctx.name.clone(), twid)).await.unwrap();
                                 }
-                                display_tx.send(display_bridge::DisplayContrl::Scroll(speech.tweet_id)).await.unwrap();
+
+                                ctx.forcus_id = Some(speech.tweet_id);
+                                display_tx.send(display_bridge::DisplayContrl::Scroll(ctx.name.clone(), ctx.forcus_id.as_ref().unwrap().clone())).await.unwrap();
                             },
 
                             Err(e) => {
@@ -383,12 +435,17 @@ pub fn start(
                             // Cancel current playing speech only;
                             if twid == "" { continue; }
 
+                            if tts_state == TTSState::Processing {
+                                tts_state = TTSState::Canceling;
+                            }
                             let drop_list = ctx.jump_to_twid(&twid);
 
                             for id in drop_list {
-                                display_tx.send(display_bridge::DisplayContrl::Delete(id)).await.unwrap();
+                                display_tx.send(display_bridge::DisplayContrl::Delete(ctx.name.clone(), id)).await.unwrap();
                             }
-                            display_tx.send(display_bridge::DisplayContrl::Scroll(twid)).await.unwrap();
+
+                            ctx.forcus_id = Some(twid);
+                            display_tx.send(display_bridge::DisplayContrl::Scroll(ctx.name.clone(), ctx.forcus_id.as_ref().unwrap().clone())).await.unwrap();
                         },
 
                         user_input::UserInput::Paused(msg) => {
@@ -401,12 +458,46 @@ pub fn start(
                             settings.speaker = speaker.speaker;
 
                             ctx.remove_cache();
+                            if tts_state == TTSState::Processing {
+                                tts_state = TTSState::Canceling;
+                            }
                         }
 
                         user_input::UserInput::SpeechRate(speech_rate) => {
                             settings.speech_rate = speech_rate;
 
                             ctx.remove_cache();
+                            if tts_state == TTSState::Processing {
+                                tts_state = TTSState::Canceling;
+                            }
+                        }
+
+                        user_input::UserInput::TimelineView(timeline) => {
+                            println!("scheduler: {:?}", timeline);
+
+                            if timeline != current_tl_view {
+                                audioctl_tx.send(audio_player::AudioControl::Stop).await.unwrap();
+                                ctx.remove_cache();
+                                if tts_state == TTSState::Processing {
+                                    tts_state = TTSState::Canceling;
+                                }
+
+                                match timeline.clone() {
+                                    twitter_agent::Timeline::User => {
+                                        ctx = &mut ctx_user;
+                                    }
+
+                                    twitter_agent::Timeline::Search {query} => {
+                                        ctx = &mut ctx_search;
+                                    }
+                                }
+                            }
+
+                            current_tl_view = timeline;
+
+                            if ctx.forcus_id.is_some() {
+                                display_tx.send(display_bridge::DisplayContrl::Scroll(ctx.name.clone(), ctx.forcus_id.as_ref().unwrap().clone())).await.unwrap();
+                            }
                         }
                     }
                 }

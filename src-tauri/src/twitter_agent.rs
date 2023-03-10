@@ -11,7 +11,7 @@ use tauri::Manager;
 const QUEUE_LENGTH: usize = 1;
 const REQUEST_PERIOD: u64 = 10000; // milliseconds
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Timeline {
     User,
     Search {query: String},
@@ -219,6 +219,7 @@ pub fn start(
 
     // Operating clock
     let (clk_tx, mut clk_rx) = tokio::sync::mpsc::channel::<()>(1);
+    let clk_tx_c = clk_tx.clone();
     tokio::spawn(async move {
         loop {
             let _ = clk_tx.send(()).await;
@@ -292,6 +293,7 @@ pub fn start(
                 Some(tl) = timeline_rx.recv() => {
                     println!("timeline: {:?}", tl);
                     timeline = tl;
+                    clk_tx_c.send(()).await;
                 }
             }
         }

@@ -37,45 +37,84 @@ function App() {
     tweetListPair,
     searchTweetListPair,
     focusedPair,
+    skippedPair,
     speechRatePair,
   } = React.useContext(AppContext);
 
   const [focusTweetId, setFocusTweetId] = focusTweetIdPair;
   const [tweetList, setTweetList] = tweetListPair;
+  const [searchFocusTweetId, setSearchFocusTweetId] = focusTweetIdPair;
   const [searchTweetList, setSearchTweetList] = searchTweetListPair;
+  const [skipped, setSkipped] = skippedPair;
   const [focused, setFocused] = focusedPair;
   const [speechRate, setSpeechRate] = speechRatePair;
+
+  React.useEffect(() => {
+    if (focused) {
+        if (location.pathname === "/") {
+          scrollToFocus(focusTweetId);
+        } else if (location.pathname === "/search") {
+          scrollToFocus(searchFocusTweetId);
+        }
+    }
+  }, [focusTweetId, searchFocusTweetId, focused]);
+
+  const location = useLocation();
+  React.useEffect(() => {
+    console.log(location.pathname);
+
+    if (location.pathname === "/") {
+        invoke("set_timeline", {"timeline": "User"} );
+        invoke("set_timeline_view", {"timeline": "User"} );
+    } else if (location.pathname === "/search") {
+        // set_timeline is called when the search button is pushed.
+        invoke("set_timeline_view", {"timeline": {"Search": {"query": ""}}} );
+    }
+
+    if (location.pathname === "/") {
+      scrollToFocus(focusTweetId);
+    } else if (location.pathname === "/search") {
+      scrollToFocus(searchFocusTweetId);
+    }
+
+  }, [location]);
 
   const scrollToFocus = (twid: string) => {
     const targetEl = document.getElementById(twid);
     if (targetEl
-        && window.location.pathname === "/"
-        || window.location.pathname === "search") {
+        && location.pathname === "/"
+        || location.pathname === "/search") {
       targetEl?.scrollIntoView({ behavior: "smooth" });
       console.log(twid);
     }
   };
 
   React.useEffect(() => {
-    if (focused) {
-      scrollToFocus(focusTweetId);
-    }
-  }, [focusTweetId, focused]);
+    if (skipped) {
+      console.log("skipped");
 
-  const location = useLocation();
-  React.useEffect(() => {
-    if (location.pathname === "/") {
-        invoke("set_timeline", {"timeline": "User"} );
-    }
-
-    if (location.pathname === "/" ||
-        location.pathname === "search") {
-      if (focused) {
-        scrollToFocus(focusTweetId);
+      let id;
+      if (location.pathname === "/") {
+        const index = tweetList.findIndex((elem) => elem.tweet_id === focusTweetId);
+        if (index in tweetList) {
+          id = tweetList[index + 1]?.tweet_id;
+        } else {
+          id = "";
+        }
+      } else if (location.pathname === "/search") {
+        const index = searchTweetList.findIndex((elem) => elem.tweet_id === searchFocusTweetId);
+        if (index in searchTweetList) {
+          id = searchTweetList[index + 1]?.tweet_id;
+        } else {
+          id = "";
+        }
       }
 
+      invoke('jump', {twid: id});
+
+      setSkipped(false);
     }
-  }, [location]);
+  }, [skipped]);
 
   React.useEffect(() => {
     listen("tauri://frontend/token-register", (event) => {
@@ -103,7 +142,7 @@ function App() {
       }
     });
 
-    listen<ViewElements>("tauri://frontend/display/add", (event) => {
+    listen<ViewElements>("tauri://frontend/display/user/add", (event) => {
       const data: ViewElements = event.payload;
       tweetList.push({
         tweet_id: data.tweet_id,
@@ -118,16 +157,44 @@ function App() {
       setTweetList([...tweetList]);
     });
 
-    listen<string>("tauri://frontend/display/delete", (event) => {
+    listen<string>("tauri://frontend/display/user/delete", (event) => {
       const twid: string = event.payload;
       const index = tweetList.findIndex((elem) => elem.tweet_id === twid);
       tweetList.splice(index, 1);
       setTweetList([...tweetList]);
     });
 
-    listen<string>("tauri://frontend/display/scroll", (event) => {
+    listen<string>("tauri://frontend/display/user/scroll", (event) => {
       const twid: string = event.payload;
       setFocusTweetId(twid);
+      console.log(twid);
+    });
+
+    listen<ViewElements>("tauri://frontend/display/search/add", (event) => {
+      const data: ViewElements = event.payload;
+      searchTweetList.push({
+        tweet_id: data.tweet_id,
+        author_id: data.author_id,
+        username: data.name,
+        user_id: data.username,
+        time: data.created_at,
+        tweet: data.text,
+        profile_image_url: data.profile_image_url,
+        attachments: data.attachments,
+      });
+      setSearchTweetList([...searchTweetList]);
+    });
+
+    listen<string>("tauri://frontend/display/search/delete", (event) => {
+      const twid: string = event.payload;
+      const index = searchTweetList.findIndex((elem) => elem.tweet_id === twid);
+      searchTweetList.splice(index, 1);
+      setSearchTweetList([...searchTweetList]);
+    });
+
+    listen<string>("tauri://frontend/display/search/scroll", (event) => {
+      const twid: string = event.payload;
+      setSearchFocusTweetId(twid);
       console.log(twid);
     });
 

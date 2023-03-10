@@ -14,6 +14,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AbcIcon from '@mui/icons-material/Abc';
+import SearchIcon from '@mui/icons-material/Search';
 
 
 export const Drawer = () => {
@@ -69,7 +70,7 @@ export const Drawer = () => {
         >
         <ListItemButton onClick={onSearchClick}>
           <ListItemIcon>
-            <AbcIcon />
+            <SearchIcon />
           </ListItemIcon>
           <ListItemText primary='Search' />
         </ListItemButton>

@@ -11,6 +11,7 @@ type AppContextType = {
   focusTweetIdPair: [string, React.Dispatch<string>];
   tweetListPair: [Array<TweetProps>, React.Dispatch<Array<TweetProps>>];
   searchTweetListPair: [Array<TweetProps>, React.Dispatch<Array<TweetProps>>];
+  skippedPair: [boolean, React.Dispatch<boolean>];
   pausedPair: [boolean, React.Dispatch<boolean>];
   focusedPair: [boolean, React.Dispatch<boolean>];
   speakerPair: [string, React.Dispatch<string>];
@@ -24,6 +25,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [focusTwid, setFocusTwid] = React.useState<string>("");
   const [tweetList, setTweetList] = React.useState<Array<TweetProps>>([]);
   const [searchTweetList, setSearchTweetList] = React.useState<Array<TweetProps>>([]);
+  const [skipped, setSkipped] = React.useState(false);
   const [paused, setPaused] = React.useState(false);
   const [focused, setFocused] = React.useState(true);
 
@@ -91,6 +93,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
         focusTweetIdPair: [focusTwid, setFocusTwid],
         tweetListPair: [tweetList, setTweetList],
         searchTweetListPair: [searchTweetList, setSearchTweetList],
+        skippedPair: [skipped, setSkipped],
         pausedPair: [paused, setPaused],
         focusedPair: [focused, setFocused],
         speakerPair: [speaker, setSpeaker],

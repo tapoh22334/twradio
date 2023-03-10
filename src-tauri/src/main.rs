@@ -36,6 +36,7 @@ async fn setup_app(
     Ok(())
 }
 
+
 #[tauri::command]
 async fn set_timeline(
     timeline: twitter_agent::Timeline,
@@ -48,6 +49,21 @@ async fn set_timeline(
 
     println!("tauri://backend/timeline {:?}", timeline);
     tx.send(timeline).await.unwrap();
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_timeline_view(
+    timeline: twitter_agent::Timeline,
+    state: tauri::State<'_, tokio::sync::Mutex<tokio::sync::mpsc::Sender<user_input::UserInput>>>,
+) -> Result<(), ()> {
+    let tx = state.lock().await;
+
+    println!("tauri://backend/set_timeline_view {:?}", timeline);
+    tx.send(user_input::UserInput::TimelineView(timeline))
+        .await
+        .unwrap();
 
     Ok(())
 }
@@ -239,6 +255,7 @@ async fn main() -> std::io::Result<()> {
             setup_app,
             set_paused,
             set_timeline,
+            set_timeline_view,
             set_volume,
             set_speaker,
             set_speech_rate,

@@ -17,9 +17,9 @@ pub struct ViewElements {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DisplayContrl {
-    Add(ViewElements),
-    Scroll(String),
-    Delete(String),
+    Add(String, ViewElements),
+    Scroll(String, String),
+    Delete(String, String),
 }
 
 impl From<scheduler::Record> for ViewElements {
@@ -45,21 +45,24 @@ pub fn start(
         loop {
             match display_rx.recv().await {
                 Some(msg) => match msg {
-                    DisplayContrl::Add(ve) => {
+                    DisplayContrl::Add(name, ve) => {
+                        let url = format!("tauri://frontend/display/{name}/add");
                         app_handle
-                            .emit_all("tauri://frontend/display/add", ve)
+                            .emit_all(url.as_str(), ve)
                             .unwrap();
                     }
 
-                    DisplayContrl::Delete(twid) => {
+                    DisplayContrl::Delete(name, twid) => {
+                        let url = format!("tauri://frontend/display/{name}/delete");
                         app_handle
-                            .emit_all("tauri://frontend/display/delete", twid)
+                            .emit_all(url.as_str(), twid)
                             .unwrap();
                     }
 
-                    DisplayContrl::Scroll(twid) => {
+                    DisplayContrl::Scroll(name, twid) => {
+                        let url = format!("tauri://frontend/display/{name}/scroll");
                         app_handle
-                            .emit_all("tauri://frontend/display/scroll", twid)
+                            .emit_all(url.as_str(), twid)
                             .unwrap();
                     }
                 },

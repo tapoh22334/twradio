@@ -17,9 +17,10 @@ import CenterFocusWeakIcon from '@mui/icons-material/CenterFocusWeak';
 
 
 export const TWAppBar = () => {
-  const {focusTweetIdPair, tweetListPair, pausedPair, focusedPair} = React.useContext(AppContext)
+  const {focusTweetIdPair, tweetListPair, skippedPair, pausedPair, focusedPair} = React.useContext(AppContext)
   const [focusTweetId, setFocusTweetId] = focusTweetIdPair;
   const [tweetList, setTweetList] = tweetListPair;
+  const [skipped, setSkipped] = skippedPair;
   const [paused, setPaused] = pausedPair;
   const [focused, setFocused] = focusedPair;
 
@@ -29,19 +30,11 @@ export const TWAppBar = () => {
   }
 
   const onSkipClick = () => {
-    const index = tweetList.findIndex((elem) => elem.tweet_id === focusTweetId);
-    let id;
-    if (index in tweetList) {
-        id = tweetList[index + 1]?.tweet_id;
-    } else {
-        id = "";
-    }
-
-    invoke('jump', {twid: id});
+    setSkipped(true);
   }
 
   const onFocusClick = () => {
-     setFocused(!focused);
+    setFocused(!focused);
   }
 
   const [volume, setVolume] = React.useState(() => {

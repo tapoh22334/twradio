@@ -26,6 +26,13 @@ export const SearchView = ({tweets}: {tweets: Array<TweetProps>}) => {
       }
     }
 
+    const handleEnter = (ev: React.KeyboardEvent<HTMLInputElement>) => {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            handleSearch();
+        }
+    }
+
     return (
       <React.Fragment>
         <Box
@@ -43,6 +50,7 @@ export const SearchView = ({tweets}: {tweets: Array<TweetProps>}) => {
               placeholder="Search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyPress={handleEnter}
               inputProps={{ maxLength: 36, 'aria-label': 'search' }}
             />
             <IconButton type="button" sx={{ p: '10px' }} aria-label="search" onClick={handleSearch}>
