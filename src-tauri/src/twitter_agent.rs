@@ -8,7 +8,8 @@ use crate::twitter_client;
 use tauri::Manager;
 
 //const QUEUE_LENGTH : usize = 24;
-const QUEUE_LENGTH: usize = 1;
+//const QUEUE_LENGTH: usize = 512;
+const QUEUE_LENGTH: usize = 64;
 const REQUEST_PERIOD: u64 = 10000; // milliseconds
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -89,7 +90,7 @@ async fn request_search_timeline(
             ctx.since_id_opt = Some(tweet["id"].as_str().unwrap().to_string());
 
             let empty_vec = Vec::new();
-            let record: scheduler::Record = scheduler::into(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec));
+            let record: scheduler::Record = scheduler::Record::from_tweet(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec)).unwrap();
             ret.push(record)
         }
     }
@@ -170,7 +171,7 @@ async fn request_user_timeline(
                 usrctx.since_id_opt = Some(tweet["id"].as_str().unwrap().to_string());
 
                 let empty_vec = Vec::new();
-                let record: scheduler::Record = scheduler::into(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec));
+                let record: scheduler::Record = scheduler::Record::from_tweet(&tweet, &users.as_array().unwrap(), &media.as_array().unwrap_or(&empty_vec)).unwrap();
                 ret.push(record)
             }
         }
@@ -213,9 +214,10 @@ pub fn start(
     authctl_tx: tokio::sync::mpsc::Sender<twitter_authorizator::AuthControl>,
     mut token_rx: tokio::sync::mpsc::Receiver<Oauth2Token>,
     mut timeline_rx: tokio::sync::mpsc::Receiver<Timeline>,
-) -> tokio::sync::mpsc::Receiver<(Timeline, scheduler::Record)> {
+) -> (tokio::sync::mpsc::Receiver<scheduler::Record>, tokio::sync::mpsc::Receiver<(Timeline, scheduler::Record)>) {
 
-    let (tweet_tx, tweet_rx) = tokio::sync::mpsc::channel(QUEUE_LENGTH);
+    let (user_tl_tx, user_tl_rx) = tokio::sync::mpsc::channel(QUEUE_LENGTH);
+    let (search_tl_tx, search_tl_rx) = tokio::sync::mpsc::channel(QUEUE_LENGTH);
 
     // Operating clock
     let (clk_tx, mut clk_rx) = tokio::sync::mpsc::channel::<()>(1);
@@ -246,22 +248,9 @@ pub fn start(
                         continue;
                     }
 
-                    match timeline {
+                    let records = match timeline {
                         Timeline::User => {
-                            let records = request_user_timeline(&app_handle, &mut usrctx, &mut token_opt).await;
-                            //let records = request_search_timeline(&app_handle, &mut search_ctx, &mut token_opt).await;
-                            if token_opt.is_none() {
-                                authctl_tx
-                                    .send(twitter_authorizator::AuthControl::Authorize)
-                                    .await
-                                    .unwrap();
-
-                                continue;
-                            }
-
-                            for r in records {
-                                tweet_tx.send((Timeline::User, r)).await.unwrap();
-                            }
+                            request_user_timeline(&app_handle, &mut usrctx, &mut token_opt).await
                         }
 
                         Timeline::Search{ref query} => {
@@ -272,20 +261,23 @@ pub fn start(
                                 search_ctx.query_opt = Some(query.clone());
                             }
 
-                            let records = request_search_timeline(&app_handle, &mut search_ctx, &mut token_opt).await;
-                            //let records = request_search_timeline(&app_handle, &mut search_ctx, &mut token_opt).await;
-                            if token_opt.is_none() {
-                                authctl_tx
-                                    .send(twitter_authorizator::AuthControl::Authorize)
-                                    .await
-                                    .unwrap();
+                            request_search_timeline(&app_handle, &mut search_ctx, &mut token_opt).await
+                        }
+                    };
 
-                                continue;
-                            }
+                    if token_opt.is_none() {
+                        authctl_tx
+                            .send(twitter_authorizator::AuthControl::Authorize)
+                            .await
+                            .unwrap();
 
-                            for r in records {
-                                tweet_tx.send((Timeline::Search{query: query.to_string()}, r)).await.unwrap();
-                            }
+                        continue;
+                    }
+
+                    for r in records {
+                        match timeline {
+                            Timeline::User => { user_tl_tx.try_send(r); }
+                            Timeline::Search{ref query} => { search_tl_tx.try_send((timeline.clone(), r)); }
                         }
                     }
                 }
@@ -299,5 +291,5 @@ pub fn start(
         }
     });
 
-    tweet_rx
+    (user_tl_rx, search_tl_rx)
 }

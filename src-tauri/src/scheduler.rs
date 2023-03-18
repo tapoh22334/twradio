@@ -8,7 +8,9 @@ use crate::twitter_agent;
 use crate::user_input;
 use crate::voicegen_agent;
 
-const HISTORY_LENGTH: usize = 1024;
+const HISTORY_LENGTH: usize = 128;
+const WAIT_LIST_MAX: usize = 64;
+const READY_LIST_MAX: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
@@ -22,56 +24,59 @@ pub struct Record {
     pub attachments: Vec<(String, String)>,
 }
 
-pub fn into(tweet: &serde_json::Value, users: &Vec<serde_json::Value>, medias: &Vec<serde_json::Value>) -> Record {
-    let user = users
-        .iter()
-        .find(|user| user["id"] == tweet["author_id"])
-        .unwrap();
+impl Record {
+    pub fn from_tweet(tweet: &serde_json::Value, users: &Vec<serde_json::Value>, medias: &Vec<serde_json::Value>) -> Option<Record> {
+        let user = users
+            .iter()
+            .find(|user| user["id"] == tweet["author_id"])?;
 
-    let mut attachments = Vec::new();
-    let media_keys = tweet["attachments"]["media_keys"].as_array();
-    if media_keys != None {
-        for media_key in media_keys.unwrap() {
-            let media = medias
-                .iter()
-                .find(|media| media["media_key"].as_str().unwrap() == media_key.as_str().unwrap())
-                .unwrap();
+        let attachments = tweet["attachments"]["media_keys"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .filter_map(|media_key| {
+                medias.iter()
+                    .find(|media| media["media_key"] == *media_key)
+                    .and_then(|media| {
+                        let mtype = media["type"].as_str()?;
+                        let url = match mtype {
+                            "photo" => media["url"].as_str(),
+                            "gif" | "video" => media["preview_image_url"].as_str(),
+                            _ => None,
+                        }?;
 
-            let mtype = media["type"].as_str().unwrap().to_string();
-            if mtype == "photo" {
-                attachments.push((mtype, media["url"].as_str().unwrap().to_string()));
-            } else if mtype == "gif" {
-                attachments.push((mtype, media["preview_image_url"].as_str().unwrap().to_string()));
-            } else if mtype == "video"{
-                attachments.push((mtype, media["preview_image_url"].as_str().unwrap().to_string()));
-            }
-        }
-    }
+                        Some((mtype.to_string(), url.to_string()))
+                    })
+            })
+            .collect();
 
-    Record {
-        tweet_id: tweet["id"].as_str().unwrap().to_string(),
-        author_id: tweet["author_id"].as_str().unwrap().to_string(),
-        created_at: tweet["created_at"].as_str().unwrap().to_string(),
-        text: tweet["text"].as_str().unwrap().to_string(),
-        name: user["name"].as_str().unwrap().to_string(),
-        username: user["username"].as_str().unwrap().to_string(),
-        profile_image_url: user["profile_image_url"].as_str().unwrap().to_string(),
-        attachments,
+        Some ( Self {
+            tweet_id: tweet["id"].as_str()?.to_string(),
+            author_id: tweet["author_id"].as_str()?.to_string(),
+            created_at: tweet["created_at"].as_str()?.to_string(),
+            text: tweet["text"].as_str()?.to_string(),
+            name: user["name"].as_str()?.to_string(),
+            username: user["username"].as_str()?.to_string(),
+            profile_image_url: user["profile_image_url"].as_str()?.to_string(),
+            attachments,
+        })
     }
 }
 
 fn remove<T>(list: &mut LinkedList<T>, index: usize) -> T {
-    if index == 0 {
-        let v = list.pop_front().unwrap();
+    match index {
+        0 => {
+            list.pop_front().unwrap()
+        }
 
-        return v;
-    } else {
-        // split_off function should compute in O(n) time.
-        let mut split = list.split_off(index);
-        let v = split.pop_front().unwrap();
-        list.append(&mut split);
+        _ => {
+            // split_off function should compute in O(n) time.
+            let mut split = list.split_off(index);
+            let v = split.pop_front().unwrap();
+            list.append(&mut split);
 
-        return v;
+            return v;
+        }
     }
 }
 
@@ -237,7 +242,8 @@ pub fn start(
     display_tx: tokio::sync::mpsc::Sender<display_bridge::DisplayContrl>,
     playbook_tx: tokio::sync::mpsc::Sender<voicegen_agent::Playbook>,
     audioctl_tx: tokio::sync::mpsc::Sender<audio_player::AudioControl>,
-    mut tweet_rx: tokio::sync::mpsc::Receiver<(twitter_agent::Timeline, Record)>,
+    mut user_tl_rx: tokio::sync::mpsc::Receiver<Record>,
+    mut search_tl_rx: tokio::sync::mpsc::Receiver<(twitter_agent::Timeline, Record)>,
     mut speech_rx: tokio::sync::mpsc::Receiver<Option<voicegen_agent::Speech>>,
     mut audioctl_rdy_rx: tokio::sync::mpsc::Receiver<audio_player::AudioControlRdy>,
     mut user_rx: tokio::sync::mpsc::Receiver<user_input::UserInput>,
@@ -299,48 +305,14 @@ pub fn start(
                 Some(_) = clk_rx.recv() => {
                     // Obtain Tweet
 
-                    if !settings.paused {
-                        match tweet_rx.try_recv() {
-                            Ok((tl, msg)) => {
-                                println!("New tweet incoming {:?}", tl);
-                                println!("New tweet incoming {:?}", msg.tweet_id);
-
-                                match tl.clone() {
-                                    twitter_agent::Timeline::User => {
-                                    }
-
-                                    twitter_agent::Timeline::Search {query} => {
-                                        if tl != current_search_tl {
-                                            println!("scheduler: drop all");
-                                            audioctl_tx.send(audio_player::AudioControl::Stop).await.unwrap();
-                                            ctx.forcus_id = None;
-
-                                            for id in ctx.drop_all() {
-                                                display_tx.send(display_bridge::DisplayContrl::Delete(ctx.name.clone(), id)).await.unwrap();
-                                            }
-
-                                            current_search_tl = tl.clone();
-                                        }
-                                    }
-                                }
-
-                                ctx = match tl {
-                                    twitter_agent::Timeline::User => { &mut ctx_user }
-                                    twitter_agent::Timeline::Search {query} => { &mut ctx_search }
-                                };
+                    ctx = &mut ctx_user;
+                    if !settings.paused && ctx.wait_list.len() < WAIT_LIST_MAX{
+                        match user_tl_rx.try_recv() {
+                            Ok(msg) => {
+                                println!("user tl New tweet incoming {:?}", msg.tweet_id);
 
                                 display_tx.send(display_bridge::DisplayContrl::Add(ctx.name.clone(), msg.clone().into())).await.unwrap();
                                 ctx.add_new_tweet(&msg);
-
-                                ctx = match current_tl_view.clone() {
-                                    twitter_agent::Timeline::User => { &mut ctx_user }
-                                    twitter_agent::Timeline::Search {query} => { &mut ctx_search }
-                                };
-
-                                if ctx.forcus_id.is_none() {
-                                    ctx.forcus_id = Some(msg.tweet_id);
-                                    display_tx.send(display_bridge::DisplayContrl::Scroll(ctx.name.clone(), ctx.forcus_id.as_ref().unwrap().clone())).await.unwrap();
-                                }
                             }
 
                             Err(e) => {
@@ -356,8 +328,62 @@ pub fn start(
                         }
                     }
 
+                    ctx = &mut ctx_search;
+                    if !settings.paused && ctx.wait_list.len() < WAIT_LIST_MAX {
+                        match search_tl_rx.try_recv() {
+                            Ok((tl, msg)) => {
+                                println!("search tl New tweet incoming {:?}", msg.tweet_id);
+
+                                match tl {
+                                    twitter_agent::Timeline::User => { /* not used */ }
+
+                                    twitter_agent::Timeline::Search {ref query} => {
+                                        if tl != current_search_tl {
+                                            println!("scheduler: drop all");
+                                            audioctl_tx.send(audio_player::AudioControl::Stop).await.unwrap();
+                                            ctx.forcus_id = None;
+
+                                            for id in ctx.drop_all() {
+                                                display_tx.send(display_bridge::DisplayContrl::Delete(ctx.name.clone(), id)).await.unwrap();
+                                            }
+                                            if tts_state == TTSState::Processing {
+                                                tts_state = TTSState::Canceling;
+                                                println!("scheduler: cancelling");
+                                            }
+
+                                            current_search_tl = tl.clone();
+                                        }
+                                    }
+                                }
+
+                                display_tx.send(display_bridge::DisplayContrl::Add(ctx.name.clone(), msg.clone().into())).await.unwrap();
+                                ctx.add_new_tweet(&msg);
+
+                            }
+
+                            Err(e) => {
+                                match e {
+                                    tokio::sync::mpsc::error::TryRecvError::Empty => {},
+
+                                    e => {
+                                        println!("scheduler: twitter agent closes pci {:?}", e);
+                                        return ();
+                                    }
+                                }
+                            },
+                        }
+                    }
+
+                    ctx = match current_tl_view.clone() {
+                        twitter_agent::Timeline::User => { &mut ctx_user }
+                        twitter_agent::Timeline::Search {query} => { &mut ctx_search }
+                    };
+
                     // TTS Start
-                    if ctx.wait_list.len() > 0 && tts_state == TTSState::Waiting {
+                    if ctx.wait_list.len() > 0 
+                        && ctx.ready_list.len() < READY_LIST_MAX 
+                        && tts_state == TTSState::Waiting {
+
                         tts_state = TTSState::Processing;
                         let r = ctx.fetch_for_tts();
                         println!("<clk>start processing {:?}", r.tweet_id);

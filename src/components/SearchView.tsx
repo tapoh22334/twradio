@@ -51,7 +51,7 @@ export const SearchView = ({tweets}: {tweets: Array<TweetProps>}) => {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyPress={handleEnter}
-              inputProps={{ maxLength: 36, 'aria-label': 'search' }}
+              inputProps={{ maxLength: 128, 'aria-label': 'search' }}
             />
             <IconButton type="button" sx={{ p: '10px' }} aria-label="search" onClick={handleSearch}>
               <SearchIcon />

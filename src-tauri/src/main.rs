@@ -206,7 +206,7 @@ async fn main() -> std::io::Result<()> {
             let token_rx = twitter_authorizator::start(app_handle.clone(), authctl_rx);
 
             println!("twitter_agent::start");
-            let tweet_rx = twitter_agent::start(app_handle.clone(),
+            let (user_tl_rx, search_tl_rx) = twitter_agent::start(app_handle.clone(),
                                                 authctl_tx.clone(),
                                                 token_rx,
                                                 timeline_rx);
@@ -220,7 +220,8 @@ async fn main() -> std::io::Result<()> {
                 display_tx.clone(),
                 playbook_tx.clone(),
                 audioctl_tx.clone(),
-                tweet_rx,
+                user_tl_rx,
+                search_tl_rx,
                 speech_rx,
                 audioctl_rdy_rx,
                 user_rx,
