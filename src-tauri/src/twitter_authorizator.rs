@@ -165,15 +165,18 @@ pub async fn refresh_token_if_expired(token: &mut Oauth2Token) -> Result<bool, &
     let client = new_oauth2_client();
     if token.is_expired() {
         if let Some(refresh_token) = token.refresh_token() {
-            let token_res = client
+
+            if let Ok(token_res) = client
                 .exchange_refresh_token(refresh_token)
                 .request_async(oauth2::reqwest::async_http_client)
-                .await
-                .unwrap();
+                .await {
 
-            *token = token_res.try_into().unwrap();
+                *token = token_res.try_into().unwrap();
 
-            Ok(true)
+                Ok(true)
+            } else {
+                Err("Failed to requesting refresh token exchange")
+            }
         } else {
             Err("No Refresh token found")
         }
@@ -305,11 +308,22 @@ pub fn start(
                             }
                         };
 
-                        if refresh_token_if_expired(&mut token).await.unwrap() {
-                            println!("******* Token refreshed *********");
-                            save_token_into_storage(&app_handle, token.clone());
+                        if let Ok(expired) = refresh_token_if_expired(&mut token).await{
+                            if expired {
+                                println!("******* Token refreshed *********");
+                                save_token_into_storage(&app_handle, token.clone());
+
+                            } else {
+                                println!("token is not expired");
+
+                            }
                         } else {
-                            println!("token is not expired");
+                            // Failed to exchanging refresh token
+                            app_handle
+                                .emit_all("tauri://frontend/token-unregister", ())
+                                .unwrap();
+
+                            ()
                         }
 
                         token_tx.send(token).await.unwrap();
